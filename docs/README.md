@@ -55,7 +55,7 @@ The `product-images` block renders an image or video configured in the SKU setti
 | `displayMode`             | `enum`                                   | Defines how the product media should be displayed. Possible values are `carousel` (displays the product images and videos in a carousel), `list` (displays only the product images inline, with no extra markup), and `first-image` (displays only the first image available). **The `list` and `first-image` values don't display product videos and are only compatible with the `maxHeight`, `hiddenImages`, `zoomFactor`, `aspectRatio`,`ModalZoomElement`, and `zoomMode` props**. | `carousel`       |
 | `displayThumbnailsArrows` | `boolean`                                | Displays navigation arrows on the thumbnail media. **Note:** Navigation arrows are only shown when there are 3 or more slides. With 1-2 slides, navigation is automatically disabled to prevent synchronization issues.                                                                                                                                                                                                                                                                                                                                                          | `false`          |
 | `hideFirstImage`          | `boolean`                                | Hides the first product image when set to `true`. This prop is available in the Site Editor and can be configured via `blocks.json`. Works with all display modes (`carousel`, `list`, and `first-image`).                                                                                                                                                                                                                        | `false`          |
-| `hiddenImages`            | `string` or `string[]`                                 | Hides images with labels that match the values listed in this prop. Intended to be used with the `product-summary-sku-selector` block or SKU Selector. When using SKU Selector to display color variation images (like a green swatch to represent a green SKU), you can hide these images from the main carousel by setting the image label in the catalog to match this prop value. To learn more, see the [SKU Selector](https://developers.vtex.com/docs/apps/vtex.store-components/skuselector) documentation.                                                                                                                                                                                                                      | `skuvariation`   |
+| `hiddenImages`            | `string` or `string[]`                                 | Hides images with labels that match the values listed in this prop. Intended to be used with the `product-summary-sku-selector` block or SKU Selector. When using SKU Selector to display color variation images (like a green swatch to represent a green SKU), you can hide these images from the main carousel by setting the image label in the catalog to match this prop value. **Note:** This prop works in conjunction with the Enhanced SKU Selector integration - if both are used, images matching either the prop values or the context labels will be hidden. To learn more, see the [SKU Selector](https://developers.vtex.com/docs/apps/vtex.store-components/skuselector) documentation.                                                                                                                                                                                                                      | `skuvariation`   |
 | `maxHeight`               | `number`                                 | Maximum height for individual product images (in pixels).                                                                                                                                                                                                                                                                                                                                                                                                                                       | `600`            |
 | `ModalZoom`               | `block`                                  | Opens a modal to zoom in on the product image. This prop value must match the name of the block that triggers the modal containing the product image for zooming (for example, `modal-layout` from [Modal layout](https://developers.vtex.com/docs/apps/vtex.modal-layout) app). The `ModalZoom` prop will only work if the `zoomMode` prop is set as `open-modal`. To learn more, see the [Advanced configuration section](#advanced-configuration).                 | `undefined`      |
 | `placeholder`             | `string`                                 | Sets the URL for a placeholder image to be displayed when no product image or video is available.                                                                                                                                                                                                                                                                                                                                                                                         | `undefined`      |
@@ -131,6 +131,47 @@ When using the VTEX SKU Selector to choose product color/variation:
 - The carousel resets to the first image (index 0) when the SKU variation changes
 - Both the main carousel and thumbnails remain synchronized on the first image
 - This provides a consistent experience when switching between product variations
+
+#### Enhanced SKU Selector Integration
+This component integrates with the `sunhouse.enhanced-sku-selector` app to automatically hide images based on SKU selection.
+
+**How it works:**
+- When a SKU is selected in the Enhanced SKU Selector, it collects the `imageLabel` values from the images used in the selector
+- These labels are exposed via the `SKUImageLabelsContext`
+- The Product Images Custom component reads from this context and automatically filters out images with matching labels
+- This ensures that images used in the SKU selector (like color swatches) don't appear in the main product image carousel
+
+**Requirements:**
+- The `sunhouse.enhanced-sku-selector` app must be installed and configured in your store
+- The `SKUImageLabelsProvider` must be present in the component tree (typically provided by the Enhanced SKU Selector)
+- Both components should be on the same page (Product Details Page)
+
+**Compatibility:**
+- The integration works alongside the existing `hiddenImages` prop
+- If both are used, images matching either the prop values or the context labels will be hidden
+- If the Enhanced SKU Selector is not present, the component continues to work normally using only the `hiddenImages` prop
+
+**Example:**
+```json
+{
+  "store.product": {
+    "children": [
+      "flex-layout.row#product"
+    ]
+  },
+  "flex-layout.row#product": {
+    "children": [
+      "product-images",
+      "enhanced-sku-selector"
+    ]
+  },
+  "product-images": {
+    "props": {
+      "hiddenImages": "skuvariation"
+    }
+  }
+}
+```
 
 **Example CSS for thumbnail spacing (optional):**
 

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import PropTypes from 'prop-types'
 import { useCssHandles } from 'vtex.css-handles'
 
@@ -11,6 +11,11 @@ import {
   DEFAULT_EXCLUDE_IMAGE_WITH,
   DISPLAY_MODE,
 } from './utils/enums'
+
+// Optional integration with enhanced-sku-selector
+// This integration is completely optional and will gracefully degrade if not available
+// We don't declare the dependency in manifest.json to avoid build errors
+// Instead, we try to access the module at runtime using multiple approaches
 
 const CSS_HANDLES = ['content', 'productImagesContainer']
 
@@ -40,12 +45,139 @@ const ProductImagesCustom = ({
   zoomProps,
   displayMode,
 }) => {
-  if (hiddenImages && !Array.isArray(hiddenImages)) {
-    hiddenImages = [hiddenImages]
+  // Try to load the hook dynamically at runtime
+  // We use useState and useEffect to load it asynchronously
+  // Using Function constructor to avoid webpack trying to resolve the module at build time
+  const [useSKUImageLabelsHook, setUseSKUImageLabelsHook] = useState(null)
+  const [hookLoadAttempted, setHookLoadAttempted] = useState(false)
+
+  useEffect(() => {
+    if (hookLoadAttempted) return
+    
+    setHookLoadAttempted(true)
+    
+    // Try to load the hook using Function constructor
+    // This prevents webpack from analyzing the require() call statically
+    const loadHook = () => {
+      if (typeof require === 'undefined') {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[ProductImagesCustom] require not available')
+        }
+        return
+      }
+      
+      try {
+        // Use Function constructor to create a require that webpack won't analyze
+        // This prevents webpack from trying to resolve the module at build time
+        // eslint-disable-next-line no-new-func
+        const dynamicRequire = new Function('req', 'path', 'return req(path)')
+        const modulePath = 'sunhouse.enhanced-sku-selector/react/contexts'
+        const contexts = dynamicRequire(require, modulePath)
+        const hook = contexts?.useSKUImageLabels
+        
+        if (hook && typeof hook === 'function') {
+          setUseSKUImageLabelsHook(() => hook)
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[ProductImagesCustom] ✅ Hook useSKUImageLabels loaded successfully')
+          }
+        } else {
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[ProductImagesCustom] Hook not found in module')
+          }
+        }
+      } catch (error) {
+        // Module not available - this is expected when enhanced-sku-selector is not linked
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[ProductImagesCustom] Hook not available (enhanced-sku-selector may not be linked):', error.message)
+        }
+      }
+    }
+    
+    loadHook()
+  }, [hookLoadAttempted])
+  
+  // Create a safe hook wrapper that always returns a Set
+  // This allows us to call it unconditionally (React hooks rules)
+  const useSafeSKUImageLabels = () => {
+    if (!useSKUImageLabelsHook || typeof useSKUImageLabelsHook !== 'function') {
+      return { hiddenImageLabels: new Set() }
+    }
+    
+    try {
+      return useSKUImageLabelsHook() || { hiddenImageLabels: new Set() }
+    } catch (error) {
+      // Provider not present - return empty Set
+      if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+        console.warn('[ProductImagesCustom] Contexto não encontrado, continuando sem ocultar imagens:', error.message)
+      }
+      return { hiddenImageLabels: new Set() }
+    }
+  }
+  
+  // Call the hook unconditionally at component level (React hooks rules)
+  const context = useSafeSKUImageLabels()
+  const hiddenImageLabelsFromContext = context?.hiddenImageLabels || new Set()
+  
+  // DEBUG: Log context labels
+  if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+    const labelsArray = Array.from(hiddenImageLabelsFromContext)
+    if (labelsArray.length > 0) {
+      console.log('[ProductImagesCustom] Labels ocultos recebidos:', labelsArray)
+      console.log('[ProductImagesCustom] Total de labels no contexto:', labelsArray.length)
+    } else if (!useSKUImageLabelsHook) {
+      console.log('[ProductImagesCustom] Hook não disponível, continuando sem ocultar imagens do contexto')
+    }
   }
 
-  const excludeImageRegexes =
-    hiddenImages && hiddenImages.map(text => new RegExp(text, 'i'))
+  // Normalize hiddenImages prop to array
+  const normalizedHiddenImages = useMemo(() => {
+    if (!hiddenImages) return []
+    return Array.isArray(hiddenImages) ? hiddenImages : [hiddenImages]
+  }, [hiddenImages])
+
+  // Convert context Set to sorted array for dependency tracking
+  // Create a stable string representation for useMemo dependency
+  const contextLabelsKey = Array.from(hiddenImageLabelsFromContext).sort().join(',')
+
+  // Merge hiddenImages prop with context labels
+  const allHiddenLabels = useMemo(() => {
+    const labels = new Set()
+    
+    // Add labels from prop (split comma-separated strings and trim)
+    if (normalizedHiddenImages) {
+      normalizedHiddenImages.forEach(label => {
+        if (typeof label === 'string') {
+          label.split(',').forEach(l => {
+            const trimmed = l.trim()
+            if (trimmed) labels.add(trimmed)
+          })
+        }
+      })
+    }
+    
+    // Add labels from context
+    hiddenImageLabelsFromContext.forEach(label => labels.add(label))
+    
+    // DEBUG: Log merged labels
+    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+      console.log('[ProductImagesCustom] All hidden labels (merged):', {
+        fromProp: normalizedHiddenImages,
+        fromContext: Array.from(hiddenImageLabelsFromContext),
+        merged: Array.from(labels),
+        totalCount: labels.size
+      })
+    }
+    
+    return labels
+  }, [normalizedHiddenImages, contextLabelsKey])
+
+  // Create regex patterns for prop-based filtering (backward compatibility)
+  const excludeImageRegexes = useMemo(
+    () =>
+      normalizedHiddenImages &&
+      normalizedHiddenImages.map(text => new RegExp(text, 'i')),
+    [normalizedHiddenImages]
+  )
 
   const { handles, withModifiers } = useCssHandles(CSS_HANDLES)
   const productImagesContainerClass = withModifiers(
@@ -56,13 +188,61 @@ const ProductImagesCustom = ({
   const images = useMemo(() => {
     const shouldIncludeImages = contentType !== 'videos'
 
-    return shouldIncludeImages
+    // DEBUG: Log all images before filtering
+    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+      console.log('[ProductImagesCustom] Images before filtering:', {
+        totalImages: allImages.length,
+        imagesWithLabels: allImages.map(img => ({
+          label: img.imageLabel,
+          url: img.imageUrls ? img.imageUrls[0] : img.imageUrl
+        }))
+      })
+    }
+
+    const filtered = shouldIncludeImages
       ? allImages
-          .filter(
-            image =>
-              !image.imageLabel ||
-              !excludeImageRegexes.some(regex => regex.test(image.imageLabel))
-          )
+          .filter(image => {
+            // If image has no label, always show it
+            if (!image.imageLabel) {
+              if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+                console.log('[ProductImagesCustom] Image without label - showing:', image.imageUrls ? image.imageUrls[0] : image.imageUrl)
+              }
+              return true
+            }
+
+            // Check if label is in the merged hidden labels set (exact match)
+            if (allHiddenLabels.has(image.imageLabel)) {
+              if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+                console.log('[ProductImagesCustom] Image HIDDEN (exact match):', {
+                  label: image.imageLabel,
+                  url: image.imageUrls ? image.imageUrls[0] : image.imageUrl
+                })
+              }
+              return false
+            }
+
+            // Check regex patterns for backward compatibility with hiddenImages prop
+            if (
+              excludeImageRegexes &&
+              excludeImageRegexes.some(regex => regex.test(image.imageLabel))
+            ) {
+              if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+                console.log('[ProductImagesCustom] Image HIDDEN (regex match):', {
+                  label: image.imageLabel,
+                  url: image.imageUrls ? image.imageUrls[0] : image.imageUrl
+                })
+              }
+              return false
+            }
+
+            if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+              console.log('[ProductImagesCustom] Image SHOWN:', {
+                label: image.imageLabel,
+                url: image.imageUrls ? image.imageUrls[0] : image.imageUrl
+              })
+            }
+            return true
+          })
           .map(image => ({
             type: 'image',
             url: image.imageUrls ? image.imageUrls[0] : image.imageUrl,
@@ -71,7 +251,24 @@ const ProductImagesCustom = ({
             ...(showImageLabel && { imageLabel: image.imageLabel }),
           }))
       : []
-  }, [allImages, contentType, excludeImageRegexes, showImageLabel])
+
+    // DEBUG: Log filtered images
+    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+      console.log('[ProductImagesCustom] Images after filtering:', {
+        totalBefore: allImages.length,
+        totalAfter: filtered.length,
+        hiddenCount: allImages.length - filtered.length
+      })
+    }
+
+    return filtered
+  }, [
+    allImages,
+    contentType,
+    allHiddenLabels,
+    excludeImageRegexes,
+    showImageLabel,
+  ])
 
   const videos = useMemo(() => {
     const shouldIncludeVideos = contentType !== 'images'
