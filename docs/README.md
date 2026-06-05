@@ -39,7 +39,9 @@ The `product-images` block renders an image or video configured in the SKU setti
   "product-images": {
     "props": {
       "displayThumbnailsArrows": true,
-      "hideFirstImage": false
+      "hideFirstImage": false,
+      "imageWidth": 610,
+      "imageHeight": 610
     }
   }
 ```
@@ -52,11 +54,13 @@ The `product-images` block renders an image or video configured in the SKU setti
 | `blockClass`              | `string`                                 | Serves as the block's unique identifier for customization.                                                                                                                                                                                                                                                                                                                                                                          | -                |
 | `contentOrder`            | `'videos-first'` &#124; `'images-first'` | Controls the order in which the images and videos are displayed.                                                                                                                                                                                                                                                                                                                                                                                                                                | `'images-first'` |
 | `contentType`             | `enum`                                   | Controls the type of content that will be displayed in the block. Possible values are `images`, `videos`, or `all`.                                                                                                                                                                                                                                                                                                                                                                            | `all`            |
-| `displayMode`             | `enum`                                   | Defines how the product media should be displayed. Possible values are `carousel` (displays the product images and videos in a carousel), `list` (displays only the product images inline, with no extra markup), and `first-image` (displays only the first image available). **The `list` and `first-image` values don't display product videos and are only compatible with the `maxHeight`, `hiddenImages`, `zoomFactor`, `aspectRatio`,`ModalZoomElement`, and `zoomMode` props**. | `carousel`       |
+| `displayMode`             | `enum`                                   | Defines how the product media should be displayed. Possible values are `carousel` (displays the product images and videos in a carousel), `list` (displays only the product images inline, with no extra markup), and `first-image` (displays only the first image available). **The `list` and `first-image` values don't display product videos and are only compatible with the `maxHeight`, `imageWidth`, `imageHeight`, `hiddenImages`, `zoomFactor`, `aspectRatio`,`ModalZoomElement`, and `zoomMode` props**. | `carousel`       |
 | `displayThumbnailsArrows` | `boolean`                                | Displays navigation arrows on the thumbnail media. **Note:** Navigation arrows are only shown when there are 3 or more slides. With 1-2 slides, navigation is automatically disabled to prevent synchronization issues.                                                                                                                                                                                                                                                                                                                                                          | `false`          |
 | `hideFirstImage`          | `boolean`                                | Hides the first product image when set to `true`. This prop is available in the Site Editor and can be configured via `blocks.json`. Works with all display modes (`carousel`, `list`, and `first-image`).                                                                                                                                                                                                                        | `false`          |
 | `hiddenImages`            | `string` or `string[]`                                 | Hides images with labels that match the values listed in this prop. Intended to be used with the `product-summary-sku-selector` block or SKU Selector. When using SKU Selector to display color variation images (like a green swatch to represent a green SKU), you can hide these images from the main carousel by setting the image label in the catalog to match this prop value. To learn more, see the [SKU Selector](https://developers.vtex.com/docs/apps/vtex.store-components/skuselector) documentation.                                                                                                                                                                                                                      | `skuvariation`   |
 | `maxHeight`               | `number`                                 | Maximum height for individual product images (in pixels).                                                                                                                                                                                                                                                                                                                                                                                                                                       | `600`            |
+| `imageWidth`              | `number` or responsive object              | Explicit `width` HTML attribute for product images (in pixels). Improves SEO and reduces CLS/LS. Also used as the default CDN fetch size and to generate the `srcset`. Available in the Site Editor and configurable via `blocks.json`. Supports responsive values via `vtex.responsive-values` (e.g. `{ "desktop": 610, "phone": 400 }`).                                                                                                                                                    | `610`            |
+| `imageHeight`             | `number` or responsive object              | Explicit `height` HTML attribute for product images (in pixels). When `aspectRatio` is set, height is calculated automatically from `imageWidth` to preserve the correct proportion. Available in the Site Editor and configurable via `blocks.json`. Supports responsive values via `vtex.responsive-values`.                                                                                                                                                                                  | `610`            |
 | `ModalZoom`               | `block`                                  | Opens a modal to zoom in on the product image. This prop value must match the name of the block that triggers the modal containing the product image for zooming (for example, `modal-layout` from [Modal layout](https://developers.vtex.com/docs/apps/vtex.modal-layout) app). The `ModalZoom` prop will only work if the `zoomMode` prop is set as `open-modal`. To learn more, see the [Advanced configuration section](#advanced-configuration).                 | `undefined`      |
 | `placeholder`             | `string`                                 | Sets the URL for a placeholder image to be displayed when no product image or video is available.                                                                                                                                                                                                                                                                                                                                                                                         | `undefined`      |
 | `position`                | `enum`                                   | Sets the position of the thumbnails (`left` or `right`). Only used when `thumbnailsOrientation` is `vertical`.                                                                                                                                                                                                                                                                                                                                                                                   | `left`           |
@@ -71,6 +75,60 @@ The `product-images` block renders an image or video configured in the SKU setti
 | `zoomMode`                | `enum`                                   | Sets the image zoom behavior. Possible values are `disabled` (zoom is disabled), `in-place-click` (zoom is triggered when the image is clicked), `in-place-hover` (zoom is triggered when the image is hovered on), and `open-modal` (image is zoomed using a modal).                                                                                                                                                                                                                       | `in-place-click` |
 
 ## Features
+
+### Explicit Image Dimensions (SEO & CLS)
+
+The `imageWidth` and `imageHeight` props add explicit `width` and `height` HTML attributes to all product `<img>` tags. This reserves layout space before the image loads, reducing Cumulative Layout Shift (CLS) and improving Largest Contentful Paint (LCP) scores.
+
+**Usage:**
+
+```json
+  "product-images": {
+    "props": {
+      "imageWidth": 610,
+      "imageHeight": 610
+    }
+  }
+```
+
+**Responsive values:**
+
+```json
+  "product-images": {
+    "props": {
+      "imageWidth": {
+        "desktop": 610,
+        "phone": 400
+      },
+      "imageHeight": {
+        "desktop": 610,
+        "phone": 400
+      }
+    }
+  }
+```
+
+**Behavior:**
+- Default value for both props is **610px**
+- Main product images (`ProductImage`), zoom images, and modal high-quality images receive the attributes
+- Thumbnail images receive `width`/`height` based on their thumbnail size (150px) and aspect ratio
+- When `aspectRatio` is set (e.g. `"3:4"`), `imageHeight` is calculated from `imageWidth` automatically
+- `imageWidth` is also used as the default CDN fetch size and to generate the `srcset` breakpoints
+- CSS responsive behavior (`width: 100%`, `object-fit: contain`) is preserved; HTML attributes only reserve layout space
+
+**HTML output example:**
+
+```html
+<img width="610" height="610" src="..." alt="..." loading="eager" />
+```
+
+With `aspectRatio: "3:4"` and `imageWidth: 610`:
+
+```html
+<img width="610" height="813" src="..." alt="..." />
+```
+
+This prop is available in the **Site Editor** under "Image width (px)" and "Image height (px)".
 
 ### Hide First Image
 
@@ -152,7 +210,7 @@ When configured as explained, the `zoomMode` prop allows the image to trigger a 
 
 Once both props are correctly configured, you must declare the `modal-layout` block and the `product-images.high-quality-image` block as its child.
 
-The `modal-layout` block renders the modal component and triggers the image zoom in a popup box. The `product-images.high-quality-image` block, in turn, is a *special* block used exclusively to render the `product-image` block inside the modal.
+The `modal-layout` block renders the modal component and triggers the image zoom in a popup box. The `product-images.high-quality-image` block, in turn, is a *special* block used exclusively to render the `product-image` block inside the modal. When used inside a `ProductImage` context, it inherits the `imageWidth` and `imageHeight` dimensions from the parent image for consistent CLS behavior.
 
 Example:
 

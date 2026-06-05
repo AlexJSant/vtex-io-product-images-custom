@@ -4,7 +4,114 @@ Este documento registra as customizações e melhorias implementadas no app `pro
 
 ---
 
-## 📅 Data: [Data de hoje]
+## 📅 Data: 05/06/2026
+
+### 🎯 Objetivos da Sessão
+- Adicionar atributos HTML `width` e `height` explícitos nas tags `<img>` do produto
+- Melhorar SEO e performance (redução de CLS/LS)
+- Tornar as dimensões configuráveis via Site Editor e `blocks.json`
+- Definir valor padrão de 610px para largura e altura
+- Corrigir avisos de messages no `vtex link` (React builder e sincronização entre idiomas)
+
+---
+
+## ✅ Mudanças Implementadas (05/06/2026)
+
+### 12. Atributos `width` e `height` Explícitos nas Imagens do Produto
+
+**Problema:** As tags `<img>` não possuíam atributos `width` e `height` explícitos, o que prejudicava SEO e causava layout shift (CLS) durante o carregamento das imagens.
+
+**Solução:** Novas props `imageWidth` e `imageHeight` (padrão: 610px) configuráveis via Site Editor e `blocks.json`, com suporte a valores responsivos via `vtex.responsive-values`.
+
+**Arquivos modificados:**
+
+| Arquivo | Mudança |
+|---------|---------|
+| `react/components/ProductImagesCustom/utils/aspectRatioUtil.tsx` | Exportado `parseAspectRatio` e adicionada função `computeImageDimensions()` para calcular dimensões com base no aspect ratio |
+| `react/components/ProductImagesCustom/components/ProductImageContext.ts` | Adicionados `imageWidth` e `imageHeight` ao contexto para compartilhar dimensões com componentes filhos |
+| `react/components/ProductImagesCustom/components/ProductImage.tsx` | Props `imageWidth`/`imageHeight` (padrão 610px); atributos `width`/`height` na imagem principal e zoom; `srcset` gerado dinamicamente a partir de `imageWidth` |
+| `react/components/ProductImagesCustom/components/HighQualityProductImage.tsx` | Herda `imageWidth`/`imageHeight` do `ProductImageContext`; atributos `width`/`height` nas imagens do modal |
+| `react/components/ProductImagesCustom/components/Carousel/ThumbnailSwiper.js` | Atributos `width`/`height` nas thumbnails (base 150px + aspect ratio) |
+| `react/components/ProductImagesCustom/components/Carousel/index.js` | Repasse de `imageWidth`/`imageHeight` para `ProductImage` (slides e placeholder) |
+| `react/components/ProductImagesCustom/Wrapper.js` | Props no `useResponsiveValues`, repasse ao componente e schema do Site Editor |
+| `react/components/ProductImagesCustom/index.js` | Aceita e repassa props para `ProductImage` e `Carousel` (modos list, first-image e carousel) |
+| `messages/context.json` | Chaves i18n para `imageWidth` e `imageHeight` |
+| `messages/en.json` | Traduções em inglês |
+| `messages/pt.json` | Traduções em português |
+| `docs/README.md` | Documentação das novas props e seção de feature |
+
+**Comportamento:**
+- **Padrão:** `imageWidth: 610`, `imageHeight: 610`
+- **Com `aspectRatio` definido:** altura calculada automaticamente a partir da largura (ex.: `3:4` com `imageWidth: 610` → `height: 813`)
+- **`srcset`:** gerado dinamicamente com breakpoints `75%`, `100%` e `150%` de `imageWidth` (antes: fixo em 600, 800, 1200)
+- **CDN fetch size:** usa `imageWidth` como tamanho padrão (antes: 800px fixo)
+- **Thumbnails:** `width`/`height` baseados em `THUMB_SIZE` (150px) + aspect ratio
+- **Modal zoom:** `HighQualityProductImage` herda dimensões do contexto pai
+- **CSS:** mantido `width: 100%`, `object-fit: contain` — atributos HTML apenas reservam espaço no layout
+
+**Site Editor:**
+- Novos campos: "Largura da imagem (px)" e "Altura da imagem (px)"
+- Chaves: `admin/editor.product-images.imageWidth.title` e `admin/editor.product-images.imageHeight.title`
+
+**Exemplo `blocks.json`:**
+
+```json
+"product-images": {
+  "props": {
+    "imageWidth": 610,
+    "imageHeight": 610
+  }
+}
+```
+
+**Exemplo responsivo:**
+
+```json
+"product-images": {
+  "props": {
+    "imageWidth": { "desktop": 610, "phone": 400 },
+    "imageHeight": { "desktop": 610, "phone": 400 }
+  }
+}
+```
+
+**HTML gerado:**
+
+```html
+<img width="610" height="610" src="..." alt="..." loading="eager" />
+```
+
+**Status:** ✅ Implementado
+
+---
+
+### 13. Limpeza de Mensagens e Schemas (i18n)
+
+**Problema:** O `vtex link` exibia dezenas de avisos do React builder e de chaves faltando entre idiomas. O app, fork do `vtex.store-components`, ainda carregava ~190 mensagens e schemas de blocos que não são exportados neste app standalone.
+
+**Avisos corrigidos:**
+- `React builder could not parse automatically all messages in your code`
+- `Messages between language "X" and "en" are different`
+
+**Arquivos modificados:**
+
+| Arquivo | Mudança |
+|---------|---------|
+| `messages/*.json` (17 idiomas) | Reduzidos às 22 chaves `admin/editor.product-images.*` usadas pelo schema do Site Editor |
+| `messages/context.json` | Atualizado para conter apenas as chaves do product-images |
+| `store/contentSchemas.json` | Removidos schemas legados (InfoCard, SearchBar, Newsletter, etc.) — substituído por `{ "definitions": {} }` |
+| `react/components/ProductImagesCustom/Wrapper.js` | Título de `hideFirstImage` corrigido (removido texto hardcoded em português); adicionado `defineMessages` para análise estática do React builder |
+
+**Comportamento:**
+- **Mensagens:** Apenas labels do Site Editor para o bloco `product-images-custom` (zoom, thumbnails, dimensões, hideFirstImage)
+- **Idiomas:** Todas as 22 chaves sincronizadas entre `en`, `pt`, `ar`, `es` e demais locales
+- **Schemas:** App expõe somente `product-images-custom` e `product-images-custom.high-quality-image` via `store/interfaces.json`
+
+**Status:** ✅ Implementado
+
+---
+
+## 📅 Data: [Sessões anteriores]
 
 ### 🎯 Objetivos da Sessão
 - Customização do comportamento do carrossel de thumbnails
@@ -287,6 +394,12 @@ Com `slidesPerView={3}` e `spaceBetween={24}`:
 - **Comportamento:** Altura calculada automaticamente baseada na largura
 - **Responsivo:** Mantém proporção em desktop e mobile
 
+### Mensagens (i18n)
+- App standalone: manter apenas chaves referenciadas no código/schema (`admin/editor.product-images.*`)
+- `context.json` deve conter todas as chaves declaradas nos JSONs de idioma
+- Mensagens dinâmicas ou usadas em `getSchema` devem ser declaradas com `defineMessages` do `react-intl` para o React builder analisá-las estaticamente
+- Evitar copiar mensagens do `vtex.store-components` — o app não exporta esses blocos
+
 ---
 
 ## 🐛 Bugs Corrigidos
@@ -352,10 +465,30 @@ Com `slidesPerView={3}` e `spaceBetween={24}`:
 
 **Status:** ✅ Resolvido
 
+### Bug 7: Avisos de Messages no `vtex link`
+**Problema:** Dezenas de warnings ao executar `vtex link` — React builder não conseguia parsear mensagens e idiomas estavam dessincronizados em relação ao `en.json`.
+
+**Causa:** Herança do fork do `vtex.store-components` com mensagens/schemas não utilizados; título de `hideFirstImage` hardcoded em português no schema.
+
+**Solução:**
+- Trim de `messages/` para 22 chaves do product-images
+- Limpeza de `store/contentSchemas.json`
+- `defineMessages` no `Wrapper.js` e uso do ID `admin/editor.product-images.hideFirstImage.title`
+
+**Arquivos afetados:**
+- `messages/*.json`, `messages/context.json`
+- `store/contentSchemas.json`
+- `react/components/ProductImagesCustom/Wrapper.js`
+
+**Status:** ✅ Resolvido
+
 ---
 
 ## 🔄 Próximos Passos
 
+- [x] Corrigir avisos de messages no `vtex link`
+- [x] Adicionar atributos `width`/`height` explícitos nas imagens do produto (SEO/CLS)
+- [x] Tornar dimensões configuráveis via Site Editor e `blocks.json`
 - [x] Ajustar comportamento de sincronização entre carrossel principal e thumbnails
 - [x] Corrigir reset do carrossel ao mudar variação de SKU
 - [x] Testar em diferentes dispositivos e navegadores
@@ -371,8 +504,11 @@ Com `slidesPerView={3}` e `spaceBetween={24}`:
 
 ## 📚 Referências
 
+- [MDN: width and height attributes on img](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-width)
+- [Web.dev: Optimize CLS](https://web.dev/articles/optimize-cls)
 - [Swiper.js Documentation](https://swiperjs.com/)
 - [CSS :has() Selector](https://developer.mozilla.org/en-US/docs/Web/CSS/:has)
 - [CSS aspect-ratio Property](https://developer.mozilla.org/en-US/docs/Web/CSS/aspect-ratio)
 - VTEX IO CSS Handles Documentation
 - VTEX Product Context Documentation
+- [VTEX IO Messages builder](https://developers.vtex.com/docs/guides/vtex-io-documentation-messages-builder)

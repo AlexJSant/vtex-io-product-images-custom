@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react'
+import { defineMessages } from 'react-intl'
 import useProduct from 'vtex.product-context/useProduct'
 import { useResponsiveValues } from 'vtex.responsive-values'
 import { path, pick } from 'ramda'
@@ -7,11 +8,52 @@ import ProductImagesCustom from './index'
 import generateImageConfig from './utils/generateImageConfig'
 import { THUMBS_ORIENTATION, THUMBS_POSITION_HORIZONTAL } from './utils/enums'
 
+const schemaMessages = defineMessages({
+  title: { id: 'admin/editor.product-images.title' },
+  description: { id: 'admin/editor.product-images.description' },
+  zoomOptionsTitle: { id: 'admin/editor.product-images.zoomOptions.title' },
+  zoomTypeTitle: { id: 'admin/editor.product-images.zoomType.title' },
+  gallery: { id: 'admin/editor.product-images.gallery' },
+  inPage: { id: 'admin/editor.product-images.in-page' },
+  noZoom: { id: 'admin/editor.product-images.no-zoom' },
+  bgOpacityTitle: { id: 'admin/editor.product-images.bgopacity.title' },
+  hideFirstImageTitle: {
+    id: 'admin/editor.product-images.hideFirstImage.title',
+  },
+  hideFirstImageDescription: {
+    id: 'admin/editor.product-images.hideFirstImage.description',
+  },
+  thumbnailsOrientationTitle: {
+    id: 'admin/editor.product-images.thumbnailsOrientation.title',
+  },
+  vertical: { id: 'admin/editor.product-images.vertical' },
+  horizontal: { id: 'admin/editor.product-images.horizontal' },
+  positionTitle: { id: 'admin/editor.product-images.position.title' },
+  positionDescription: {
+    id: 'admin/editor.product-images.position.description',
+  },
+  left: { id: 'admin/editor.product-images.left' },
+  right: { id: 'admin/editor.product-images.right' },
+  displayThumbnailsArrowsTitle: {
+    id: 'admin/editor.product-images.displayThumbnailsArrows.title',
+  },
+  imageWidthTitle: { id: 'admin/editor.product-images.imageWidth.title' },
+  imageWidthDescription: {
+    id: 'admin/editor.product-images.imageWidth.description',
+  },
+  imageHeightTitle: { id: 'admin/editor.product-images.imageHeight.title' },
+  imageHeightDescription: {
+    id: 'admin/editor.product-images.imageHeight.description',
+  },
+})
+
 const ProductImagesCustomWrapper = props => {
   const valuesFromContext = useProduct() || {}
   const {
     aspectRatio,
     maxHeight,
+    imageWidth,
+    imageHeight,
     showNavigationArrows,
     showPaginationDots,
     contentOrder,
@@ -21,6 +63,8 @@ const ProductImagesCustomWrapper = props => {
       [
         'aspectRatio',
         'maxHeight',
+        'imageWidth',
+        'imageHeight',
         'showNavigationArrows',
         'showPaginationDots',
         'contentOrder',
@@ -84,6 +128,8 @@ const ProductImagesCustomWrapper = props => {
       zoomFactor={props.zoomFactor}
       aspectRatio={aspectRatio}
       maxHeight={maxHeight}
+      imageWidth={imageWidth}
+      imageHeight={imageHeight}
       thumbnailAspectRatio={props.thumbnailAspectRatio}
       thumbnailMaxHeight={props.thumbnailMaxHeight}
       showNavigationArrows={showNavigationArrows}
@@ -140,8 +186,7 @@ ProductImagesCustomWrapper.getSchema = ({ zoomProps: { zoomType } = {} }) => ({
       },
     },
     hideFirstImage: {
-      // title: 'admin/editor.product-images.hideFirstImage.title',
-      title: 'Esconder a primeira imagem',
+      title: 'admin/editor.product-images.hideFirstImage.title',
       description: 'admin/editor.product-images.hideFirstImage.description',
       type: 'boolean',
       default: false,
@@ -187,7 +232,20 @@ ProductImagesCustomWrapper.getSchema = ({ zoomProps: { zoomType } = {} }) => ({
       default: false,
       isLayout: true,
     },
+    imageWidth: {
+      title: 'admin/editor.product-images.imageWidth.title',
+      description: 'admin/editor.product-images.imageWidth.description',
+      type: 'number',
+      default: 610,
+    },
+    imageHeight: {
+      title: 'admin/editor.product-images.imageHeight.title',
+      description: 'admin/editor.product-images.imageHeight.description',
+      type: 'number',
+      default: 610,
+    },
   },
 })
 
+export { schemaMessages }
 export default ProductImagesCustomWrapper

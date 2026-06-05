@@ -3,14 +3,14 @@ import { Modal } from 'vtex.modal-layout'
 import { useCssHandles, applyModifiers } from 'vtex.css-handles'
 
 import Zoomable, { ZoomMode } from './Zoomable'
-import { imageUrl } from '../utils/aspectRatioUtil'
+import { imageUrl, computeImageDimensions } from '../utils/aspectRatioUtil'
 import ProductImageContext, {
   State as ProductImageState,
 } from './ProductImageContext'
 import '../styles.css'
 
-const IMAGE_SIZES = [600, 800, 1200]
-const DEFAULT_SIZE = 800
+const DEFAULT_IMAGE_WIDTH = 610
+const DEFAULT_IMAGE_HEIGHT = 610
 const MAX_SIZE = 2048
 
 interface Props {
@@ -22,6 +22,8 @@ interface Props {
   zoomFactor: number
   aspectRatio?: AspectRatio
   maxHeight?: number | string
+  imageWidth?: number
+  imageHeight?: number
   ModalZoomElement?: typeof Modal
   hideFirstImage?: boolean
 }
@@ -37,17 +39,32 @@ const ProductImage: FC<Props> = ({
   imageLabel,
   zoomFactor = 2,
   maxHeight = 600,
+  imageWidth = DEFAULT_IMAGE_WIDTH,
+  imageHeight = DEFAULT_IMAGE_HEIGHT,
   ModalZoomElement,
   aspectRatio = 'auto',
   zoomMode = 'in-place-click',
   hideFirstImage = false,
 }) => {
+  const imageSizes = useMemo(
+    () =>
+      [...new Set([Math.round(imageWidth * 0.75), imageWidth, Math.round(imageWidth * 1.5)])].sort(
+        (a, b) => a - b
+      ),
+    [imageWidth]
+  )
+
+  const { width: imgWidth, height: imgHeight } = useMemo(
+    () => computeImageDimensions(imageWidth, imageHeight, aspectRatio),
+    [imageWidth, imageHeight, aspectRatio]
+  )
+
   const srcSet = useMemo(
     () =>
-      IMAGE_SIZES.map(
-        size => `${imageUrl(src, size, MAX_SIZE, aspectRatio)} ${size}w`
-      ).join(','),
-    [src, aspectRatio]
+      imageSizes
+        .map(size => `${imageUrl(src, size, MAX_SIZE, aspectRatio)} ${size}w`)
+        .join(','),
+    [src, aspectRatio, imageSizes]
   )
 
   const { handles } = useCssHandles(CSS_HANDLES)
@@ -57,8 +74,10 @@ const ProductImage: FC<Props> = ({
     () => ({
       src,
       alt,
+      imageWidth: imgWidth,
+      imageHeight: imgHeight,
     }),
-    [alt, src]
+    [alt, src, imgWidth, imgHeight]
   )
 
   const productImageClassName = useMemo(() => {
@@ -84,9 +103,11 @@ const ProductImage: FC<Props> = ({
             <img
               // This img element is just for zoom
               role="presentation"
+              width={imgWidth * zoomFactor}
+              height={imgHeight * zoomFactor}
               src={imageUrl(
                 src,
-                DEFAULT_SIZE * zoomFactor,
+                imageWidth * zoomFactor,
                 MAX_SIZE,
                 aspectRatio
               )}
@@ -105,6 +126,8 @@ const ProductImage: FC<Props> = ({
         >
           <img
             ref={imageRef}
+            width={imgWidth}
+            height={imgHeight}
             className={`${applyModifiers(handles.productImageTag, 'main')}`}
             style={{
               width: '100%',
@@ -112,7 +135,7 @@ const ProductImage: FC<Props> = ({
               maxHeight: maxHeight || 'unset',
               objectFit: 'contain',
             }}
-            src={imageUrl(src, DEFAULT_SIZE, MAX_SIZE, aspectRatio)}
+            src={imageUrl(src, imageWidth, MAX_SIZE, aspectRatio)}
             srcSet={srcSet}
             alt={alt}
             title={alt}

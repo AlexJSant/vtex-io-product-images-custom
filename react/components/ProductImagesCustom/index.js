@@ -24,6 +24,8 @@ const ProductImagesCustom = ({
   thumbnailsOrientation,
   aspectRatio,
   maxHeight,
+  imageWidth,
+  imageHeight,
   thumbnailAspectRatio,
   thumbnailMaxHeight,
   showNavigationArrows,
@@ -107,6 +109,8 @@ const ProductImagesCustom = ({
             alt={alt}
             imageLabel={imageLabel}
             maxHeight={maxHeight}
+            imageWidth={imageWidth}
+            imageHeight={imageHeight}
             zoomFactor={zoomFactor}
             aspectRatio={aspectRatio}
             ModalZoomElement={ModalZoomElement}
@@ -133,6 +137,8 @@ const ProductImagesCustom = ({
           alt={alt}
           imageLabel={imageLabel}
           maxHeight={maxHeight}
+          imageWidth={imageWidth}
+          imageHeight={imageHeight}
           zoomFactor={zoomFactor}
           aspectRatio={aspectRatio}
           ModalZoomElement={ModalZoomElement}
@@ -151,6 +157,8 @@ const ProductImagesCustom = ({
         position={position}
         zoomMode={zoomMode}
         maxHeight={maxHeight}
+        imageWidth={imageWidth}
+        imageHeight={imageHeight}
         zoomFactor={zoomFactor}
         aspectRatio={aspectRatio}
         ModalZoomElement={ModalZoomElement}
@@ -213,6 +221,8 @@ ProductImagesCustom.propTypes = {
   displayThumbnailsArrows: PropTypes.bool,
   aspectRatio: PropTypes.string,
   maxHeight: PropTypes.number,
+  imageWidth: PropTypes.number,
+  imageHeight: PropTypes.number,
   thumbnailAspectRatio: PropTypes.string,
   thumbnailMaxHeight: PropTypes.number,
   showNavigationArrows: PropTypes.bool,

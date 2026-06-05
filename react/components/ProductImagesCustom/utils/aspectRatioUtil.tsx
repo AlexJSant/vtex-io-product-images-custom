@@ -6,7 +6,7 @@ type AspectRatio = string | number
  * For example, turns "3:4" into 1.333, so the image height will be
  * 1.333 times its width.
  */
-const parseAspectRatio = (input?: AspectRatio | null) => {
+export const parseAspectRatio = (input?: AspectRatio | null) => {
   if (!input) {
     return null
   }
@@ -71,4 +71,21 @@ export const imageUrl = (
   }
 
   return changeImageUrlSize(src, width, height)
+}
+
+export const computeImageDimensions = (
+  imageWidth: number,
+  imageHeight: number,
+  aspectRatio?: AspectRatio
+) => {
+  const ratio = parseAspectRatio(aspectRatio)
+
+  if (ratio) {
+    return {
+      width: imageWidth,
+      height: Math.round(imageWidth * ratio),
+    }
+  }
+
+  return { width: imageWidth, height: imageHeight }
 }

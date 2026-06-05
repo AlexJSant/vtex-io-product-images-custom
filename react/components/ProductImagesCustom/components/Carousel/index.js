@@ -171,6 +171,8 @@ class Carousel extends Component {
     const {
       aspectRatio,
       maxHeight,
+      imageWidth,
+      imageHeight,
       zoomMode,
       zoomFactor,
       ModalZoomElement,
@@ -197,6 +199,8 @@ class Carousel extends Component {
             alt={slide.alt}
             imageLabel={slide.imageLabel}
             maxHeight={maxHeight}
+            imageWidth={imageWidth}
+            imageHeight={imageHeight}
             zoomFactor={zoomFactor}
             aspectRatio={aspectRatio}
             ModalZoomElement={ModalZoomElement}
@@ -261,6 +265,8 @@ class Carousel extends Component {
     const {
       aspectRatio,
       maxHeight,
+      imageWidth,
+      imageHeight,
       placeholder,
       position,
       handles,
@@ -312,6 +318,8 @@ class Carousel extends Component {
               src={placeholder}
               alt="Product image placeholder"
               maxHeight={maxHeight}
+              imageWidth={imageWidth}
+              imageHeight={imageHeight}
               aspectRatio={aspectRatio}
               zoomMode="disabled"
             />

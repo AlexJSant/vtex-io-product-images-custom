@@ -5,7 +5,7 @@ import { Swiper, SwiperSlide } from 'swiper/react'
 import { IconCaret } from 'vtex.store-icons'
 
 import { THUMBS_POSITION_HORIZONTAL } from '../../utils/enums'
-import { imageUrl } from '../../utils/aspectRatioUtil'
+import { imageUrl, computeImageDimensions } from '../../utils/aspectRatioUtil'
 import styles from '../../styles.css'
 
 const THUMB_SIZE = 150
@@ -23,6 +23,11 @@ const CSS_HANDLES = [
 
 const Thumbnail = props => {
   const { alt, isVideo, thumbUrl, handles, aspectRatio = 'auto' } = props
+  const { width: thumbWidth, height: thumbHeight } = computeImageDimensions(
+    THUMB_SIZE,
+    THUMB_SIZE,
+    aspectRatio
+  )
 
   return (
     <>
@@ -33,6 +38,8 @@ const Thumbnail = props => {
         itemType="http://schema.org/ImageObject"
       >
         <img
+          width={thumbWidth}
+          height={thumbHeight}
           className={`${applyModifiers(
             handles.thumbImg,
             isVideo ? 'video' : ''

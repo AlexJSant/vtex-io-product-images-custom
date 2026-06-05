@@ -66,7 +66,8 @@ function HighQualityProductImage(props: Props) {
     return null
   }
 
-  const { alt, src } = context
+  const { alt, src, imageWidth = defaultSize, imageHeight = defaultSize } =
+    context
   const srcSet = imageSizes
     ?.map(size => `${imageUrl(src, size, maxSize, aspectRatio)} ${size}w`)
     .join(',')
@@ -92,6 +93,8 @@ function HighQualityProductImage(props: Props) {
           <img
             // This img element is just for zoom
             role="presentation"
+            width={imageWidth * zoomFactor}
+            height={imageHeight * zoomFactor}
             className={handles.imgZoom}
             style={{
               // Resets possible resizing done via CSS
@@ -113,6 +116,8 @@ function HighQualityProductImage(props: Props) {
         <img
           alt={alt}
           title={alt}
+          width={imageWidth}
+          height={imageHeight}
           loading="lazy"
           srcSet={srcSet}
           className={imgClasses}
@@ -122,7 +127,7 @@ function HighQualityProductImage(props: Props) {
             imageSizes
               ? imageUrl(src, defaultSize * zoomFactor, maxSize, aspectRatio)
               : src
-          }
+            }
         />
       </Zoomable>
     </div>
