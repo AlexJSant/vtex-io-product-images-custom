@@ -18,6 +18,11 @@ import {
   THUMBS_VISIBILITY,
 } from '../../utils/enums'
 import styles from './swiper.scoped.css'
+import {
+  getSlidesKey,
+  joinSwiperClasses,
+  sanitizeSwiperClass,
+} from './swiperClassUtils'
 
 import './swiper.global.css'
 import './overrides.global.css'
@@ -98,36 +103,11 @@ class Carousel extends Component {
     if (!equals(prevProps.slides, this.props.slides)) {
       this.setInitialVariablesState()
 
-      if (
-        !this.props.slides ||
-        this.state.gallerySwiper?.destroyed ||
-        this.state.thumbSwiper?.destroyed
-      ) {
-        return
-      }
-
-      // this.state.gallerySwiper?.slideTo(initialState.activeIndex)
-      // this.state.thumbSwiper?.slideTo(initialState.activeIndex)
-
-      // Reset para o primeiro slide quando as imagens mudam (ex: mudança de SKU)
-      // Usar setTimeout para garantir que o Swiper atualizou seus slides internos
-      setTimeout(() => {
-        if (this.state.gallerySwiper && !this.state.gallerySwiper.destroyed) {
-          // Se o loop estiver ativo, usar slideToLoop, caso contrário slideTo
-          if (this.props.slides.length > 1 && this.state.gallerySwiper.slideToLoop) {
-            this.state.gallerySwiper.slideToLoop(0, 0)
-          } else {
-            this.state.gallerySwiper.slideTo(0, 0)
-          }
-        }
-        
-        if (this.state.thumbSwiper && !this.state.thumbSwiper.destroyed) {
-          this.state.thumbSwiper.slideTo(0, 0)
-        }
-      }, 0)
-
+      // Recriação limpa via `key` nos Swipers — evita slideToLoop em instância em destroy
       this.setState({
         ...initialState,
+        thumbSwiper: null,
+        gallerySwiper: null,
       })
 
       return
@@ -231,13 +211,24 @@ class Carousel extends Component {
 
     const params = {}
 
-    if (slides.length > 1 && showPaginationDots) {
+    const paginationClass = sanitizeSwiperClass(styles['swiper-pagination'])
+
+    if (slides.length > 1 && showPaginationDots && paginationClass) {
       params.pagination = {
-        el: `.${styles['swiper-pagination']}`,
+        el: `.${paginationClass}`,
         clickable: true,
-        clickableClass: styles.swiperPaginationClickable,
-        bulletClass: styles.swiperBullet,
-        bulletActiveClass: styles['swiperBullet--active'],
+        clickableClass: sanitizeSwiperClass(
+          styles.swiperPaginationClickable,
+          'swiper-pagination-clickable'
+        ),
+        bulletClass: sanitizeSwiperClass(
+          styles.swiperBullet,
+          'swiper-pagination-bullet'
+        ),
+        bulletActiveClass: sanitizeSwiperClass(
+          styles['swiperBullet--active'],
+          'swiper-pagination-bullet-active'
+        ),
         renderBullet(_index, className) {
           return `<span class="${className} c-action-primary"></span>`
         },
@@ -248,14 +239,24 @@ class Carousel extends Component {
       params.navigation = {
         prevEl: '.swiper-caret-prev',
         nextEl: '.swiper-caret-next',
-        disabledClass: `c-disabled ${styles.carouselCursorDefault}`,
+        disabledClass: joinSwiperClasses(
+          'c-disabled',
+          styles.carouselCursorDefault
+        ),
       }
     }
 
-    params.thumbs = {
-      swiper: this.state.thumbSwiper,
-      multipleActiveThumbs: false,
-      slideThumbActiveClass: handles.productImagesThumbActive,
+    const { thumbSwiper } = this.state
+
+    if (thumbSwiper && !thumbSwiper.destroyed) {
+      params.thumbs = {
+        swiper: thumbSwiper,
+        multipleActiveThumbs: false,
+        slideThumbActiveClass: sanitizeSwiperClass(
+          handles.productImagesThumbActive,
+          'swiper-slide-thumb-active'
+        ),
+      }
     }
 
     return params
@@ -282,6 +283,7 @@ class Carousel extends Component {
     } = this.props
 
     const hasSlides = slides && slides.length > 0
+    const slidesKey = getSlidesKey(slides)
 
     const isThumbsVertical =
       thumbnailsOrientation === THUMBS_ORIENTATION.VERTICAL
@@ -349,6 +351,7 @@ class Carousel extends Component {
 
     const thumbnailSwiper = (
       <ThumbnailSwiper
+        key={`thumbs-${slidesKey}`}
         onSwiper={instance => this.setState({ thumbSwiper: instance })}
         isThumbsVertical={isThumbsVertical}
         thumbnailAspectRatio={thumbnailAspectRatio}
@@ -367,8 +370,8 @@ class Carousel extends Component {
           hasThumbs && // Adicionar verificação para garantir que há slides
           thumbnailSwiper}
         <div className={imageClasses}>
-          {!this.state.thumbSwiper?.destroyed && (
-            <Swiper
+          <Swiper
+              key={`gallery-${slidesKey}`}
               onSwiper={instance => this.setState({ gallerySwiper: instance })}
               className={handles.productImagesGallerySwiperContainer}
               threshold={10}
@@ -422,7 +425,6 @@ class Carousel extends Component {
                 </span>
               </div>
             </Swiper>
-          )}
 
           {!isThumbsVertical &&
             thumbnailVisibility === THUMBS_VISIBILITY.VISIBLE &&

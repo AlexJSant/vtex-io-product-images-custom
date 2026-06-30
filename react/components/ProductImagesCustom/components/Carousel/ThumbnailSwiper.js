@@ -7,6 +7,8 @@ import { IconCaret } from 'vtex.store-icons'
 import { THUMBS_POSITION_HORIZONTAL } from '../../utils/enums'
 import { imageUrl, computeImageDimensions } from '../../utils/aspectRatioUtil'
 import styles from '../../styles.css'
+import swiperStyles from './swiper.scoped.css'
+import { joinSwiperClasses } from './swiperClassUtils'
 
 const THUMB_SIZE = 150
 const THUMB_MAX_SIZE = 256
@@ -56,12 +58,17 @@ const Thumbnail = props => {
   )
 }
 
-const navigationConfig = {
+const getNavigationConfig = () => ({
   prevEl: '.swiper-thumbnails-caret-prev',
   nextEl: '.swiper-thumbnails-caret-next',
-  disabledClass: `c-disabled o-0 pointer-events-none ${styles.carouselCursorDefault}`,
+  disabledClass: joinSwiperClasses(
+    'c-disabled',
+    'o-0',
+    'pointer-events-none',
+    swiperStyles.carouselCursorDefault
+  ),
   hiddenClass: 'dn',
-}
+})
 
 const ThumbnailSwiper = props => {
   const { handles } = useCssHandles(CSS_HANDLES)
@@ -195,7 +202,7 @@ const ThumbnailSwiper = props => {
         touchRatio={1}
         threshold={8}
         // navigation={navigationConfig}
-        navigation={shouldShowNavigation ? navigationConfig : false} // Desabilitar quando há menos de 3 slides
+        navigation={shouldShowNavigation ? getNavigationConfig() : false}
         slidesPerGroup={1}
         // Manter o loop desativado das thumbnails para evitar problemas de sincronização
         // START

@@ -4,6 +4,75 @@ Este documento registra as customizações e melhorias implementadas no app `pro
 
 ---
 
+## 📅 Data: 30/06/2026
+
+### 🎯 Objetivos da Sessão
+- Corrigir crash do Swiper ao trocar variação de SKU na PDP (erro `undefined.split` no `addClass`/`removeClass`)
+- Garantir que nenhuma opção `*Class` passada ao Swiper seja `undefined`
+- Manter reset para a primeira imagem ao mudar SKU sem derrubar a subárvore do `product-main`
+- Analisar os warnings remanescentes no console (`installHook.js`) e separar o que pertence a este app do que é ruído externo
+
+---
+
+## ✅ Mudanças Implementadas (30/06/2026)
+
+### 14. Crash do Swiper na Troca de Variação de SKU
+
+**Problema:** Ao clicar em uma variação de SKU no `enhanced-sku-selector`, o `product-context` re-renderizava com novas imagens e o Swiper quebrava com `TypeError: Cannot read properties of undefined (reading 'split')` em `addClass`/`removeClass` (via `classesToTokens` do Swiper 6.2.0). O erro derrubava toda a subárvore React do `product-main` (fotos, preço, compra, CEP).
+
+**Causas identificadas:**
+1. `ThumbnailSwiper.js` importava `styles.carouselCursorDefault` de `../../styles.css`, mas essa classe existe apenas em `swiper.scoped.css` — `disabledClass` da navegação de thumbnails ficava com token inválido.
+2. `componentDidUpdate` chamava `slideToLoop(0, 0)` via `setTimeout` enquanto a instância do Swiper era destruída/recriada na troca de slides — race entre `update`/`toEdge` e `destroy`.
+3. A galeria principal só renderizava quando `!thumbSwiper?.destroyed`, desmontando o carrossel principal durante transições do thumb swiper.
+4. Opções `*Class` do Swiper (pagination, navigation, thumbs) sem fallback quando CSS Module ou handle retornava valor ausente.
+
+**Solução:**
+- Novo utilitário `swiperClassUtils.js` com `sanitizeSwiperClass`, `joinSwiperClasses` e `getSlidesKey`.
+- `key` baseada no conjunto de slides (`gallery-${slidesKey}` / `thumbs-${slidesKey}`) para recriação limpa do Swiper ao mudar SKU — elimina `slideToLoop` manual no `componentDidUpdate`.
+- Remoção da condição `!thumbSwiper?.destroyed` que escondia a galeria.
+- `params.thumbs` só é passado quando `thumbSwiper` existe e não está `destroyed`.
+- Fallbacks para todas as classes de pagination, navigation e `slideThumbActiveClass`.
+- `ThumbnailSwiper`: `disabledClass` usa `swiper.scoped.css` via `joinSwiperClasses`.
+
+**Arquivos modificados:**
+
+| Arquivo | Mudança |
+|---------|---------|
+| `react/components/ProductImagesCustom/components/Carousel/swiperClassUtils.js` | Novo — sanitização de classes e chave de slides |
+| `react/components/ProductImagesCustom/components/Carousel/index.js` | `key` nos Swipers, thumbs condicional, classes sanitizadas, `componentDidUpdate` simplificado |
+| `react/components/ProductImagesCustom/components/Carousel/ThumbnailSwiper.js` | `disabledClass` corrigido com `swiper.scoped.css` |
+| `manifest.json` | Versão `1.3.1` |
+| `CHANGELOG.md` | Entrada da correção |
+
+**Comportamento:**
+- Troca de SKU recria o carrossel na primeira imagem sem erro no console.
+- Fotos, preço, botão de compra e simulador de CEP permanecem na tela.
+- Thumbnails, navegação e loop do carrossel principal mantêm comportamento documentado nas sessões anteriores.
+
+**Status:** ✅ Implementado (aguardando validação final no ambiente publicado)
+
+---
+
+### 15. Diagnóstico dos Warnings Remanescentes no Console
+
+Após a correção, o console ainda exibia avisos via `installHook.js`. Foi feita a triagem para confirmar que **não pertencem a este app** e não estão relacionados ao crash do Swiper.
+
+**Observação importante:** `installHook.js` é o **React DevTools** interceptando `console.warn`/`console.error` — não é código do app. Ele apenas reexibe o aviso com o stack do componente que o originou.
+
+| Warning | Origem | Relacionado ao `product-images-custom`? | Ação |
+|---------|--------|-----------------------------------------|------|
+| `Encountered two children with the same key, 'bold'` | `Installments` → `InstallmentsRenderer` → `IOMessageWithMarkers` → `IOMessage` (componente de parcelas da VTEX, disparado pelo SKU Selector) | Não | Nenhuma neste app. Eventual ajuste seria no tema/app de parcelas |
+| `no-response` / `Failed to execute 'put' on 'Cache'` (Workbox) | Service Worker / PWA + bloqueio de Facebook/Google em dev | Não | Ignorar (ruído de analytics/PWA em ambiente de dev) |
+| `connect.facebook.net` / `googleadservices` `ERR_FAILED` | GTM / Pixels (Facebook, Google Ads) | Não | Ignorar |
+
+**Confirmação da correção:** o erro-alvo `TypeError: Cannot read properties of undefined (reading 'split')` (via `addClass`/`classesToTokens` do Swiper) **não aparece mais** nos logs após a troca de SKU, e a subárvore do `product-main` (imagens, preço, compra, CEP) permanece montada.
+
+**Pendência:** validação final será feita ao subir o app para a **loja publicada** (o comportamento em produção minificada é o critério de aceite definitivo).
+
+**Status:** ✅ Diagnosticado
+
+---
+
 ## 📅 Data: 05/06/2026
 
 ### 🎯 Objetivos da Sessão

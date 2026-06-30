@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-06-30
+
+### Fixed
+
+- Crash do Swiper (`Cannot read properties of undefined (reading 'split')`) ao trocar variação de SKU na PDP: classes CSS sanitizadas, `carouselCursorDefault` corrigido no ThumbnailSwiper, recriação limpa do carrossel via `key` e remoção do `slideToLoop` em instância em destroy.
+
 ## [1.3.0] - 2026-06-08
 
 ## [1.2.1] - 2025-12-10
