@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Fixed
+
+- Regressão visual pós-sync manual: destaque do thumb ativo (`productImagesThumbActive`) restaurado via `syncThumbSlideActiveClass` no DOM (como o módulo Thumbs fazia); transição animada do carrossel de thumbs com `slideTo(index, 300)` na navegação da galeria.
+- Crash no carregamento por `InvalidCharacterError` em `classList.toggle`: handles VTEX podem retornar múltiplas classes (base + modifier); cada token é aplicado separadamente.
+
 ## [1.4.4] - 2026-07-01
 
 ## [1.4.3] - 2026-07-01
@@ -14,6 +19,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 
 - Crash na troca de SKU quando thumbnails estão linkados: removido módulo Thumbs do Swiper (causa raiz do destroy em cascata); sincronização manual galeria ↔ thumbs via `onSlideChange`/`onClick`. Corrigida ordem de declaração de `hasThumbs` que impedia renderização consistente dos thumbs.
+- Thumbnails estáticos após remoção do módulo Thumbs: `onSwiper` bloqueado por `_isMounted` antes do `componentDidMount`; refs de instância na classe; clique via `onTap`/`onClick`/`SwiperSlide`; overlay `carouselThumbBorder` com `pointer-events-none`.
 
 ## [1.4.2] - 2026-07-01
 

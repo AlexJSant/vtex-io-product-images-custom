@@ -1,4 +1,4 @@
-import React, { Fragment, useMemo } from 'react'
+import React, { Fragment, useMemo, useRef, useEffect, useCallback } from 'react'
 import classNames from 'classnames'
 import { useCssHandles, applyModifiers } from 'vtex.css-handles'
 import { Swiper, SwiperSlide } from 'swiper/react'
@@ -8,7 +8,7 @@ import { THUMBS_POSITION_HORIZONTAL } from '../../utils/enums'
 import { imageUrl, computeImageDimensions } from '../../utils/aspectRatioUtil'
 import styles from '../../styles.css'
 import swiperStyles from './swiper.scoped.css'
-import { joinSwiperClasses } from './swiperClassUtils'
+import { joinSwiperClasses, syncThumbSlideActiveClass, THUMB_CAROUSEL_SPEED } from './swiperClassUtils'
 
 const THUMB_SIZE = 150
 const THUMB_MAX_SIZE = 256
@@ -52,7 +52,7 @@ const Thumbnail = props => {
         />
       </figure>
       <div
-        className={`absolute absolute--fill b--solid b--muted-2 bw0 ${handles.carouselThumbBorder}`}
+        className={`absolute absolute--fill b--solid b--muted-2 bw0 pointer-events-none ${handles.carouselThumbBorder}`}
       />
     </>
   )
@@ -85,36 +85,55 @@ const ThumbnailSwiper = props => {
     thumbActiveClass,
     onThumbClick,
     slidesKey,
+    onSwiper,
     ...swiperProps
   } = props
+
+  const thumbSwiperRef = useRef(null)
+
+  const handleSwiper = useCallback(
+    instance => {
+      thumbSwiperRef.current = instance
+
+      if (onSwiper) {
+        onSwiper(instance)
+      }
+
+      syncThumbSlideActiveClass(instance, activeIndex, thumbActiveClass)
+    },
+    [onSwiper, activeIndex, thumbActiveClass]
+  )
+
+  useEffect(() => {
+    const swiper = thumbSwiperRef.current
+
+    if (!swiper || swiper.destroyed) {
+      return undefined
+    }
+
+    const applyActiveClass = () => {
+      syncThumbSlideActiveClass(swiper, activeIndex, thumbActiveClass)
+    }
+
+    applyActiveClass()
+    swiper.on('update', applyActiveClass)
+    swiper.on('slideChange', applyActiveClass)
+    swiper.on('transitionEnd', applyActiveClass)
+
+    return () => {
+      if (!swiper.destroyed) {
+        swiper.off('update', applyActiveClass)
+        swiper.off('slideChange', applyActiveClass)
+        swiper.off('transitionEnd', applyActiveClass)
+      }
+    }
+  }, [activeIndex, thumbActiveClass, slidesKey, slides.length])
 
   const hasThumbs = slides.length >= 1 // Mudança: >= 1 ao invés de > 1
   const slidesCount = slides.length || 1
 
   // Desabilitar navegação quando há menos de 3 slides
   const shouldShowNavigation = slidesCount >= 3 && displayThumbnailsArrows
-
-  // Detectar se é desktop e desabilitar drag quando há 2 slides
-  const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 640
-  // const shouldDisableDrag = isDesktop && slidesCount === 2
-  const shouldDisableDrag = isDesktop && slidesCount <= 2
-  
-  // Definir largura mínima dos thumbnails
-  // const THUMB_MIN_WIDTH_DESKTOP = 231 // Ajuste conforme sua medida ideal
-  // const THUMB_MIN_WIDTH_MOBILE = 100 // Ajuste para mobile
-  
-  // // Calcular largura baseada no número de slides
-  // const getThumbWidth = () => {
-  //   if (slidesCount >= 3) {
-  //     return undefined // Usa w-20 (20%) quando há 3+ slides
-  //   }
-  //   // Quando há menos de 3, usa largura mínima
-  //   return typeof window !== 'undefined' && window.innerWidth >= 640 
-  //     ? `${THUMB_MIN_WIDTH_DESKTOP}px` 
-  //     : `${THUMB_MIN_WIDTH_MOBILE}px`
-  // }
-
-  // const thumbWidth = getThumbWidth()
 
   const thumbClassName = classNames(
     `${handles.carouselGaleryThumbs} dn h-auto`,
@@ -195,11 +214,21 @@ const ThumbnailSwiper = props => {
   return (
     <div className={thumbClassName} data-testid="thumbnail-swiper">
       <Swiper
+        onSwiper={handleSwiper}
         className={`h-100 ${handles.productImagesThumbsSwiperContainer}`}
+        speed={THUMB_CAROUSEL_SPEED}
+        slideToClickedSlide
+        onTap={swiper => {
+          const index = swiper.clickedIndex
+
+          if (index != null && index >= 0 && onThumbClick) {
+            onThumbClick(index)
+          }
+        }}
         onClick={swiper => {
           const index = swiper.clickedIndex
 
-          if (index != null && onThumbClick) {
+          if (index != null && index >= 0 && onThumbClick) {
             onThumbClick(index)
           }
         }}
@@ -222,12 +251,7 @@ const ThumbnailSwiper = props => {
         // allowTouchMove={!shouldDisableDrag} // Desabilitar movimento via touch quando há 2 slides no desktop
         
         simulateTouch={true}
-        allowTouchMove={true} // SEMPRE habilitado para permitir cliques funcionarem
-
-        // loop={slides.length >= 3}
-        // loopedSlides={slides.length >= 3 ? 3 : undefined}
-        // END
-        //
+        allowTouchMove={true}
         freeMode={false}
         mousewheel={false}
         zoom={false}
@@ -236,20 +260,20 @@ const ThumbnailSwiper = props => {
         preloadImages
         updateOnWindowResize
         direction={isThumbsVertical ? 'vertical' : 'horizontal'}
-        //
-        centeredSlides={slides.length < 2} // Centralizar quando há menos de 3 slides
-        // centeredSlidesBounds={slides.length < 3} // Limitar bounds quando centralizado
-        centeredSlidesBounds={false} // Desabilitar bounds para permitir cliques em todos os slides
-        //
+        centeredSlides={slides.length < 2}
+        centeredSlidesBounds={false}
         {...swiperProps}
       >
         {slides.map((slide, i) => {
           return (
             <SwiperSlide
               key={`${slidesKey}-${i}-${slide.alt || i}`}
-              className={classNames(itemContainerClassName, {
-                [thumbActiveClass]: thumbActiveClass && i === activeIndex,
-              })}
+              className={itemContainerClassName}
+              onClick={() => {
+                if (onThumbClick) {
+                  onThumbClick(i)
+                }
+              }}
               style={{
                 aspectRatio: isThumbsVertical ? undefined : '405 / 241', // Aspect ratio 405:241
                 // height: isThumbsVertical ? 'auto' : '115px',

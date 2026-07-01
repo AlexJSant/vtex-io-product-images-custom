@@ -22,6 +22,7 @@ import {
   getSlidesKey,
   joinSwiperClasses,
   sanitizeSwiperClass,
+  THUMB_CAROUSEL_SPEED,
 } from './swiperClassUtils'
 
 import './swiper.global.css'
@@ -59,8 +60,10 @@ class Carousel extends Component {
 
   isVideo = []
   _isMounted = false
+  gallerySwiper = null
+  thumbSwiper = null
 
-  getGalleryActiveIndex(gallerySwiper = this.state.gallerySwiper) {
+  getGalleryActiveIndex(gallerySwiper = this.gallerySwiper) {
     const { slides = [] } = this.props
 
     if (!gallerySwiper || gallerySwiper.destroyed) {
@@ -74,33 +77,42 @@ class Carousel extends Component {
     return gallerySwiper.activeIndex
   }
 
-  syncThumbPosition = () => {
-    const { thumbSwiper } = this.state
+  syncThumbPosition = (speed = THUMB_CAROUSEL_SPEED) => {
     const activeIndex = this.getGalleryActiveIndex()
 
-    if (!thumbSwiper || thumbSwiper.destroyed) {
+    if (!this.thumbSwiper || this.thumbSwiper.destroyed) {
       return
     }
 
-    if (thumbSwiper.activeIndex !== activeIndex) {
-      thumbSwiper.slideTo(activeIndex, 0)
-    }
+    this.thumbSwiper.slideTo(activeIndex, speed)
   }
 
   setThumbSwiper = instance => {
-    if (!this._isMounted || !instance || instance.destroyed) {
+    if (!instance || instance.destroyed) {
       return
     }
 
-    this.setState({ thumbSwiper: instance }, this.syncThumbPosition)
+    this.thumbSwiper = instance
+
+    if (this._isMounted) {
+      this.setState({ thumbSwiper: instance }, () =>
+        this.syncThumbPosition(0)
+      )
+    }
   }
 
   setGallerySwiper = instance => {
-    if (!this._isMounted || !instance || instance.destroyed) {
+    if (!instance || instance.destroyed) {
       return
     }
 
-    this.setState({ gallerySwiper: instance }, this.syncThumbPosition)
+    this.gallerySwiper = instance
+
+    if (this._isMounted) {
+      this.setState({ gallerySwiper: instance }, () =>
+        this.syncThumbPosition(0)
+      )
+    }
   }
 
   setInitialVariablesState() {
@@ -129,10 +141,26 @@ class Carousel extends Component {
   componentDidMount() {
     this._isMounted = true
     this.setInitialVariablesState()
+
+    const pendingState = {}
+
+    if (this.thumbSwiper) {
+      pendingState.thumbSwiper = this.thumbSwiper
+    }
+
+    if (this.gallerySwiper) {
+      pendingState.gallerySwiper = this.gallerySwiper
+    }
+
+    if (Object.keys(pendingState).length > 0) {
+      this.setState(pendingState, () => this.syncThumbPosition(0))
+    }
   }
 
   componentWillUnmount() {
     this._isMounted = false
+    this.gallerySwiper = null
+    this.thumbSwiper = null
   }
 
   componentDidUpdate(prevProps) {
@@ -141,7 +169,7 @@ class Carousel extends Component {
 
     const paginationElement = path(
       ['pagination', 'el'],
-      this.state.gallerySwiper
+      this.gallerySwiper
     )
 
     if (paginationElement) {
@@ -149,38 +177,36 @@ class Carousel extends Component {
     }
 
     if (prevProps.slides !== this.props.slides) {
-      this.syncThumbPosition()
+      this.syncThumbPosition(0)
     }
   }
 
   handleSlideChange = () => {
-    const { gallerySwiper } = this.state
-
-    if (!gallerySwiper || gallerySwiper.destroyed) {
+    if (!this.gallerySwiper || this.gallerySwiper.destroyed) {
       return
     }
 
-    const activeIndex = this.getGalleryActiveIndex(gallerySwiper)
+    const activeIndex = this.getGalleryActiveIndex(this.gallerySwiper)
 
-    this.syncThumbPosition()
     this.setState({ activeIndex, sliderChanged: true })
+    this.syncThumbPosition(THUMB_CAROUSEL_SPEED)
   }
 
   handleThumbClick = index => {
-    const { gallerySwiper } = this.state
     const { slides = [] } = this.props
 
-    if (!gallerySwiper || gallerySwiper.destroyed || index == null) {
+    if (!this.gallerySwiper || this.gallerySwiper.destroyed || index == null) {
       return
     }
 
-    if (slides.length > 1 && gallerySwiper.slideToLoop) {
-      gallerySwiper.slideToLoop(index, 0)
+    if (slides.length > 1 && this.gallerySwiper.slideToLoop) {
+      this.gallerySwiper.slideToLoop(index, THUMB_CAROUSEL_SPEED)
     } else {
-      gallerySwiper.slideTo(index, 0)
+      this.gallerySwiper.slideTo(index, THUMB_CAROUSEL_SPEED)
     }
 
     this.setState({ activeIndex: index })
+    this.syncThumbPosition(THUMB_CAROUSEL_SPEED)
   }
 
   setVideoThumb = i => (url, title) => {
@@ -410,6 +436,7 @@ class Carousel extends Component {
             onSwiper={this.setGallerySwiper}
             className={handles.productImagesGallerySwiperContainer}
             threshold={10}
+            speed={THUMB_CAROUSEL_SPEED}
             resistanceRatio={slides.length > 1 ? 0.85 : 0}
             onSlideChange={this.handleSlideChange}
             updateOnWindowResize
@@ -461,7 +488,9 @@ class Carousel extends Component {
             </div>
           </Swiper>
 
-          {!isThumbsVertical && thumbsVisible && thumbnailSwiper}
+          {!isThumbsVertical && thumbsVisible && (
+            <div className="relative z-2">{thumbnailSwiper}</div>
+          )}
         </div>
       </div>
     )

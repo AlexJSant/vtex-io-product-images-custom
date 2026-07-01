@@ -128,7 +128,46 @@ Após a correção, o console ainda exibia avisos via `installHook.js`. Foi feit
 | `Carousel/index.js` | Sem módulo Thumbs; sync manual; fix `hasThumbs` |
 | `ThumbnailSwiper.js` | `onClick`, `activeIndex`, `thumbActiveClass`, `slidesKey` |
 
-**Status:** ✅ Implementado — aguardando validação em produção
+**Status:** ⚠️ Parcial — thumbs estáticos após sync manual (ver entrada 18)
+
+---
+
+### 18. Thumbnails Estáticos (Sem Clique/Arraste) Após Sync Manual
+
+**Problema:** Crash na troca de SKU resolvido, mas carrossel de thumbs renderizava porém ficava estático — sem clique, arraste ou sincronização com a galeria.
+
+**Causas:**
+1. `setThumbSwiper` / `setGallerySwiper` retornavam cedo quando `!_isMounted`, mas `onSwiper` dispara **antes** do `componentDidMount` do `Carousel` — instâncias nunca entravam no state/refs.
+2. Overlay `carouselThumbBorder` (`absolute--fill`) capturava eventos de ponteiro sem `pointer-events-none`.
+3. `watchSlidesVisibility` / `watchSlidesProgress` eram do módulo Thumbs e não necessários na sync manual.
+
+**Solução:**
+- Refs de instância (`this.gallerySwiper`, `this.thumbSwiper`) + flush no `componentDidMount`.
+- Handlers usam refs, não só `this.state`.
+- `onTap` + `onClick` no Swiper + `onClick` em cada `SwiperSlide`.
+- `slideToClickedSlide` no thumb swiper.
+- `pointer-events-none` no `carouselThumbBorder`.
+- Removidos `watchSlidesVisibility` / `watchSlidesProgress`.
+- Wrapper `z-2` nos thumbs horizontais.
+
+**Status:** ✅ Implementado — aguardando validação
+
+---
+
+### 19. Regressão Visual — Destaque do Thumb e Transição do Carrossel
+
+**Problema:** Após sync manual (sem módulo Thumbs), o thumb selecionado perdeu o destaque visual (`productImagesThumbActive`) e o carrossel de thumbs deixou de animar ao navegar para slides além dos 3 visíveis.
+
+**Causas:**
+1. Classe ativa aplicada só via `className` no React — o Swiper sobrescreve classes do slide no DOM em updates internos.
+2. `syncThumbPosition` usava `slideTo(index, 0)` (instantâneo) e só quando `activeIndex !== thumbSwiper.activeIndex`.
+
+**Solução (mantendo sync manual — sem módulo Thumbs):**
+- `syncThumbSlideActiveClass()` em `swiperClassUtils.js` — aplica/remove `productImagesThumbActive` diretamente nos elementos `.swiper-slide`, com listeners `update`/`slideChange`/`transitionEnd`.
+- `THUMB_CAROUSEL_SPEED = 300` — animação na galeria e no thumb strip durante navegação; `speed: 0` apenas no mount e troca de SKU.
+- Restaurados `watchSlidesVisibility` e `watchSlidesProgress` no thumb swiper (comportamento original).
+
+**Status:** ✅ Implementado — aguardando validação
 
 ---
 
