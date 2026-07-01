@@ -1,5 +1,3 @@
-> ⚠️ **Attention:** This project is still under development!
-
 # ProductImagesCustom
 
 The `product-images` block renders an image or video configured in the SKU settings. This is a **standalone** version of the ProductImages component, customized with additional features.
