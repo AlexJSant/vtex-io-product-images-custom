@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [1.4.3] - 2026-07-01
+
 ### Fixed
 
 - Crash na troca de SKU quando thumbnails estão linkados: removido módulo Thumbs do Swiper (causa raiz do destroy em cascata); sincronização manual galeria ↔ thumbs via `onSlideChange`/`onClick`. Corrigida ordem de declaração de `hasThumbs` que impedia renderização consistente dos thumbs.
