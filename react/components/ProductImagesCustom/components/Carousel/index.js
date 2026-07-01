@@ -5,7 +5,7 @@ import classNames from 'classnames'
 import { path } from 'ramda'
 import { IconCaret } from 'vtex.store-icons'
 import { withCssHandles } from 'vtex.css-handles'
-import SwiperCore, { Thumbs, Navigation, Pagination } from 'swiper'
+import SwiperCore, { Navigation, Pagination } from 'swiper'
 import { Swiper, SwiperSlide } from 'swiper/react'
 
 import Video, { getThumbUrl } from '../Video'
@@ -31,8 +31,7 @@ const CARET_ICON_SIZE = 24
 const CARET_CLASSNAME =
   'pv8 absolute top-50 translate--50y z-2 pointer c-action-primary'
 
-// install Swiper's Thumbs component
-SwiperCore.use([Thumbs, Navigation, Pagination])
+SwiperCore.use([Navigation, Pagination])
 
 const CSS_HANDLES = [
   'carouselContainer',
@@ -61,19 +60,30 @@ class Carousel extends Component {
   isVideo = []
   _isMounted = false
 
-  disconnectSwipers() {
-    const { gallerySwiper, thumbSwiper } = this.state
+  getGalleryActiveIndex(gallerySwiper = this.state.gallerySwiper) {
+    const { slides = [] } = this.props
 
-    if (gallerySwiper && !gallerySwiper.destroyed) {
-      if (gallerySwiper.thumbs) {
-        gallerySwiper.thumbs.swiper = null
-      }
-
-      gallerySwiper.destroy(true, true)
+    if (!gallerySwiper || gallerySwiper.destroyed) {
+      return 0
     }
 
-    if (thumbSwiper && !thumbSwiper.destroyed) {
-      thumbSwiper.destroy(true, true)
+    if (slides.length > 1 && gallerySwiper.params?.loop) {
+      return gallerySwiper.realIndex
+    }
+
+    return gallerySwiper.activeIndex
+  }
+
+  syncThumbPosition = () => {
+    const { thumbSwiper } = this.state
+    const activeIndex = this.getGalleryActiveIndex()
+
+    if (!thumbSwiper || thumbSwiper.destroyed) {
+      return
+    }
+
+    if (thumbSwiper.activeIndex !== activeIndex) {
+      thumbSwiper.slideTo(activeIndex, 0)
     }
   }
 
@@ -82,7 +92,7 @@ class Carousel extends Component {
       return
     }
 
-    this.setState({ thumbSwiper: instance })
+    this.setState({ thumbSwiper: instance }, this.syncThumbPosition)
   }
 
   setGallerySwiper = instance => {
@@ -90,15 +100,7 @@ class Carousel extends Component {
       return
     }
 
-    this.setState({ gallerySwiper: instance })
-  }
-
-  get hasGallerySwiper() {
-    return Boolean(this.state.gallerySwiper)
-  }
-
-  get hasThumbSwiper() {
-    return Boolean(this.state.thumbSwiper)
+    this.setState({ gallerySwiper: instance }, this.syncThumbPosition)
   }
 
   setInitialVariablesState() {
@@ -113,7 +115,6 @@ class Carousel extends Component {
         this.isVideo[i] = true
         this.setVideoThumb(i)(thumbUrl)
       } else {
-        // Image object doesn't exist when it's being rendered in the server side
         if (!window.navigator) {
           return
         }
@@ -132,7 +133,6 @@ class Carousel extends Component {
 
   componentWillUnmount() {
     this._isMounted = false
-    this.disconnectSwipers()
   }
 
   componentDidUpdate(prevProps) {
@@ -147,18 +147,40 @@ class Carousel extends Component {
     if (paginationElement) {
       paginationElement.hidden = isVideo[activeIndex]
     }
+
+    if (prevProps.slides !== this.props.slides) {
+      this.syncThumbPosition()
+    }
   }
 
   handleSlideChange = () => {
-    this.setState(prevState => {
-      const { gallerySwiper } = prevState
+    const { gallerySwiper } = this.state
 
-      if (!gallerySwiper || gallerySwiper.destroyed) {
-        return null
-      }
+    if (!gallerySwiper || gallerySwiper.destroyed) {
+      return
+    }
 
-      return { activeIndex: gallerySwiper.activeIndex, sliderChanged: true }
-    })
+    const activeIndex = this.getGalleryActiveIndex(gallerySwiper)
+
+    this.syncThumbPosition()
+    this.setState({ activeIndex, sliderChanged: true })
+  }
+
+  handleThumbClick = index => {
+    const { gallerySwiper } = this.state
+    const { slides = [] } = this.props
+
+    if (!gallerySwiper || gallerySwiper.destroyed || index == null) {
+      return
+    }
+
+    if (slides.length > 1 && gallerySwiper.slideToLoop) {
+      gallerySwiper.slideToLoop(index, 0)
+    } else {
+      gallerySwiper.slideTo(index, 0)
+    }
+
+    this.setState({ activeIndex: index })
   }
 
   setVideoThumb = i => (url, title) => {
@@ -187,12 +209,10 @@ class Carousel extends Component {
       slides = [],
     } = this.props
 
-    // Backwards compatibility
     const { zoomType: legacyZoomType } = legacyZoomProps || {}
     const isZoomDisabled =
       legacyZoomType === 'no-zoom' || zoomMode === 'disabled'
 
-    // Find the index of the first image in the slides array
     const firstImageIndex = slides.findIndex(s => s.type === 'image')
     const isFirstImage = hideFirstImage && slide.type === 'image' && i === firstImageIndex
 
@@ -233,7 +253,7 @@ class Carousel extends Component {
   }
 
   get galleryParams() {
-    const { handles, slides = [], showPaginationDots = true } = this.props
+    const { slides = [], showPaginationDots = true } = this.props
 
     const params = {}
 
@@ -272,19 +292,6 @@ class Carousel extends Component {
       }
     }
 
-    const { thumbSwiper } = this.state
-
-    if (thumbSwiper && !thumbSwiper.destroyed) {
-      params.thumbs = {
-        swiper: thumbSwiper,
-        multipleActiveThumbs: false,
-        slideThumbActiveClass: sanitizeSwiperClass(
-          handles.productImagesThumbActive,
-          'swiper-slide-thumb-active'
-        ),
-      }
-    }
-
     return params
   }
 
@@ -310,14 +317,12 @@ class Carousel extends Component {
 
     const hasSlides = slides && slides.length > 0
     const slidesKey = getSlidesKey(slides)
+    const hasThumbs = slides && slides.length >= 1
     const thumbsVisible =
       thumbnailVisibility === THUMBS_VISIBILITY.VISIBLE && hasThumbs
-    const canRenderGallery = !thumbsVisible || Boolean(this.state.thumbSwiper)
 
     const isThumbsVertical =
       thumbnailsOrientation === THUMBS_ORIENTATION.VERTICAL
-
-    const hasThumbs = slides && slides.length >= 1 // Mudança: >= 1 ao invés de > 1
 
     const galleryCursor = {
       'in-page': styles.carouselGaleryCursor,
@@ -328,7 +333,6 @@ class Carousel extends Component {
       'w-100 border-box',
       galleryCursor[hasSlides ? zoomType : 'no-zoom'],
       {
-        'flex flex-column': !isThumbsVertical && thumbsVisible,
         'ml-20-ns w-80-ns pl5-ns':
           isThumbsVertical &&
           position === THUMBS_POSITION_HORIZONTAL.LEFT &&
@@ -382,7 +386,11 @@ class Carousel extends Component {
     const thumbnailSwiper = (
       <ThumbnailSwiper
         key={`thumbs-${slidesKey}`}
+        slidesKey={slidesKey}
         onSwiper={this.setThumbSwiper}
+        activeIndex={this.state.activeIndex}
+        thumbActiveClass={handles.productImagesThumbActive}
+        onThumbClick={this.handleThumbClick}
         isThumbsVertical={isThumbsVertical}
         thumbnailAspectRatio={thumbnailAspectRatio}
         thumbnailMaxHeight={thumbnailMaxHeight}
@@ -397,68 +405,63 @@ class Carousel extends Component {
       <div className={containerClasses} aria-hidden="true">
         {isThumbsVertical && thumbsVisible && thumbnailSwiper}
         <div className={imageClasses}>
-          {!isThumbsVertical && thumbsVisible && (
-            <div className="order-2">{thumbnailSwiper}</div>
-          )}
-          {canRenderGallery && (
-            <div className={classNames({ 'order-1': !isThumbsVertical && thumbsVisible })}>
-              <Swiper
-              key={`gallery-${slidesKey}`}
-              onSwiper={this.setGallerySwiper}
-              className={handles.productImagesGallerySwiperContainer}
-              threshold={10}
-              resistanceRatio={slides.length > 1 ? 0.85 : 0}
-              onSlideChange={this.handleSlideChange}
-              updateOnWindowResize
-              loop={slides.length > 1}
-              loopedSlides={slides.length >= 3 ? 3 : slides.length}
-              {...this.galleryParams}
-            >
-              {slides.map((slide, i) => (
-                <SwiperSlide
-                  key={`${slidesKey}-${i}`}
-                  className={`${handles.productImagesGallerySlide} swiper-slide center-all`}
-                >
-                  {this.renderSlide(slide, i)}
-                </SwiperSlide>
-              ))}
-
-              <div
-                key="pagination"
-                className={classNames(styles['swiper-pagination'], {
-                  dn: slides.length === 1 || !showPaginationDots,
-                })}
-              />
-
-              <div
-                className={classNames({
-                  dn: slides.length === 1 || !showNavigationArrows,
-                })}
+          <Swiper
+            key={`gallery-${slidesKey}`}
+            onSwiper={this.setGallerySwiper}
+            className={handles.productImagesGallerySwiperContainer}
+            threshold={10}
+            resistanceRatio={slides.length > 1 ? 0.85 : 0}
+            onSlideChange={this.handleSlideChange}
+            updateOnWindowResize
+            loop={slides.length > 1}
+            loopedSlides={slides.length >= 3 ? 3 : slides.length}
+            {...this.galleryParams}
+          >
+            {slides.map((slide, i) => (
+              <SwiperSlide
+                key={`${slidesKey}-${i}`}
+                className={`${handles.productImagesGallerySlide} swiper-slide center-all`}
               >
-                <span
-                  key="caret-next"
-                  className={`swiper-caret-next pl7 pr2 right-0 ${CARET_CLASSNAME} ${handles.swiperCaret} ${handles.swiperCaretNext}`}
-                >
-                  <IconCaret
-                    orientation="right"
-                    size={CARET_ICON_SIZE}
-                    className={styles.carouselIconCaretRight}
-                  />
-                </span>
-                <span
-                  key="caret-prev"
-                  className={`swiper-caret-prev pr7 pl2 left-0 ${CARET_CLASSNAME} ${handles.swiperCaret} ${handles.swiperCaretPrev}`}
-                >
-                  <IconCaret
-                    orientation="left"
-                    size={CARET_ICON_SIZE}
-                    className={styles.carouselIconCaretLeft}
-                  />
-                </span>
-              </div>
-            </Swiper>
+                {this.renderSlide(slide, i)}
+              </SwiperSlide>
+            ))}
+
+            <div
+              key="pagination"
+              className={classNames(styles['swiper-pagination'], {
+                dn: slides.length === 1 || !showPaginationDots,
+              })}
+            />
+
+            <div
+              className={classNames({
+                dn: slides.length === 1 || !showNavigationArrows,
+              })}
+            >
+              <span
+                key="caret-next"
+                className={`swiper-caret-next pl7 pr2 right-0 ${CARET_CLASSNAME} ${handles.swiperCaret} ${handles.swiperCaretNext}`}
+              >
+                <IconCaret
+                  orientation="right"
+                  size={CARET_ICON_SIZE}
+                  className={styles.carouselIconCaretRight}
+                />
+              </span>
+              <span
+                key="caret-prev"
+                className={`swiper-caret-prev pr7 pl2 left-0 ${CARET_CLASSNAME} ${handles.swiperCaret} ${handles.swiperCaretPrev}`}
+              >
+                <IconCaret
+                  orientation="left"
+                  size={CARET_ICON_SIZE}
+                  className={styles.carouselIconCaretLeft}
+                />
+              </span>
             </div>
-          )}
+          </Swiper>
+
+          {!isThumbsVertical && thumbsVisible && thumbnailSwiper}
         </div>
       </div>
     )

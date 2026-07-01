@@ -99,7 +99,36 @@ Após a correção, o console ainda exibia avisos via `installHook.js`. Foi feit
 | `react/package.json` | Swiper 6.8.4 |
 | `manifest.json` | Versão `1.4.1` |
 
-**Status:** ✅ Implementado — aguardando validação na loja publicada
+**Status:** ⚠️ Parcial — crash persistiu quando thumbs carregavam (ver entrada 17)
+
+---
+
+### 17. Causa Raiz Confirmada — Módulo Thumbs do Swiper (v1.4.2+)
+
+**Observação em produção (comportamento reproduzível):**
+- **Thumbs carregam** → troca de SKU → **crash** (primeira dobra some)
+- **Thumbs não carregam** → troca rápida de SKU várias vezes → **estável**, sem crash
+
+**Conclusão:** O crash está atrelado ao **link do módulo Thumbs** (`params.thumbs.swiper`) entre galeria e thumbnails. Sem esse link (quando thumbs não renderizam — bug de `hasThumbs` usado antes da declaração), não há destroy em cascata e a página permanece estável.
+
+**Problema técnico:** No unmount do React, os Swipers filhos são destruídos **antes** do `componentWillUnmount` do `Carousel`. Com Thumbs linkado, o `destroy()` da galeria tenta `removeClass`/`addClass` no thumb swiper durante a destruição — race que derruba o Error Boundary pai.
+
+**Solução:**
+- **Removido** módulo `Thumbs` do Swiper (`SwiperCore.use` e `params.thumbs`).
+- **Sincronização manual:** `handleSlideChange` → `thumbSwiper.slideTo(realIndex)`; clique no thumb → `gallerySwiper.slideToLoop(index)`.
+- Classe ativa do thumb aplicada via React (`thumbActiveClass` + `activeIndex`), não via módulo Thumbs.
+- **Corrigido** `hasThumbs` declarado antes de `thumbsVisible`.
+- **Restaurado** layout horizontal original (galeria acima, thumbs abaixo).
+- Removidos `canRenderGallery`, `disconnectSwipers` e montagem forçada thumbs→galeria (workarounds da v1.4.1).
+
+**Arquivos modificados:**
+
+| Arquivo | Mudança |
+|---------|---------|
+| `Carousel/index.js` | Sem módulo Thumbs; sync manual; fix `hasThumbs` |
+| `ThumbnailSwiper.js` | `onClick`, `activeIndex`, `thumbActiveClass`, `slidesKey` |
+
+**Status:** ✅ Implementado — aguardando validação em produção
 
 ---
 

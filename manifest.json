@@ -11,6 +11,9 @@
     "messages": "1.x",
     "docs": "0.x"
   },
+  "scripts": {
+    "postreleasy": "vtex publish --verbose"
+  },
   "mustUpdateAt": "2019-04-02",
   "dependencies": {
     "vtex.css-handles": "1.x",

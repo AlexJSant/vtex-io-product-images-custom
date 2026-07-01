@@ -81,6 +81,10 @@ const ThumbnailSwiper = props => {
     thumbnailAspectRatio,
     thumbnailMaxHeight,
     displayThumbnailsArrows,
+    activeIndex,
+    thumbActiveClass,
+    onThumbClick,
+    slidesKey,
     ...swiperProps
   } = props
 
@@ -192,6 +196,13 @@ const ThumbnailSwiper = props => {
     <div className={thumbClassName} data-testid="thumbnail-swiper">
       <Swiper
         className={`h-100 ${handles.productImagesThumbsSwiperContainer}`}
+        onClick={swiper => {
+          const index = swiper.clickedIndex
+
+          if (index != null && onThumbClick) {
+            onThumbClick(index)
+          }
+        }}
         //
         // slidesPerView={slides.length >= 3 ? 3 : "auto"}
         slidesPerView={3} // Sempre 3 espaços visuais
@@ -236,7 +247,9 @@ const ThumbnailSwiper = props => {
           return (
             <SwiperSlide
               key={`${slidesKey}-${i}-${slide.alt || i}`}
-              className={itemContainerClassName}
+              className={classNames(itemContainerClassName, {
+                [thumbActiveClass]: thumbActiveClass && i === activeIndex,
+              })}
               style={{
                 aspectRatio: isThumbsVertical ? undefined : '405 / 241', // Aspect ratio 405:241
                 // height: isThumbsVertical ? 'auto' : '115px',
