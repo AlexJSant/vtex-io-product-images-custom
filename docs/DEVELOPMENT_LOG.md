@@ -49,7 +49,7 @@ Este documento registra as customizações e melhorias implementadas no app `pro
 - Fotos, preço, botão de compra e simulador de CEP permanecem na tela.
 - Thumbnails, navegação e loop do carrossel principal mantêm comportamento documentado nas sessões anteriores.
 
-**Status:** ✅ Implementado (aguardando validação final no ambiente publicado)
+**Status:** ⚠️ Insuficiente em produção — crash persistiu na loja publicada (ver entrada 16)
 
 ---
 
@@ -65,11 +65,41 @@ Após a correção, o console ainda exibia avisos via `installHook.js`. Foi feit
 | `no-response` / `Failed to execute 'put' on 'Cache'` (Workbox) | Service Worker / PWA + bloqueio de Facebook/Google em dev | Não | Ignorar (ruído de analytics/PWA em ambiente de dev) |
 | `connect.facebook.net` / `googleadservices` `ERR_FAILED` | GTM / Pixels (Facebook, Google Ads) | Não | Ignorar |
 
-**Confirmação da correção:** o erro-alvo `TypeError: Cannot read properties of undefined (reading 'split')` (via `addClass`/`classesToTokens` do Swiper) **não aparece mais** nos logs após a troca de SKU, e a subárvore do `product-main` (imagens, preço, compra, CEP) permanece montada.
+**Confirmação da correção (dev):** o erro-alvo `TypeError: Cannot read properties of undefined (reading 'split')` **não aparecia mais** no ambiente linkado.
 
-**Pendência:** validação final será feita ao subir o app para a **loja publicada** (o comportamento em produção minificada é o critério de aceite definitivo).
+**Atualização pós-produção:** na loja publicada ([mesa-jantar-laguna](https://www.sunhouse.com.br/mesa-jantar-laguna/p?skuId=99991657)), o bloco inteiro da primeira camada da PDP ainda desaparecia ao trocar acabamento — ver entrada 16.
 
-**Status:** ✅ Diagnosticado
+**Status:** ✅ Diagnosticado (warnings externos); ⚠️ crash do Swiper persistiu em produção
+
+---
+
+### 16. Segunda Iteração — Crash Persistente em Produção (v1.4.1)
+
+**Problema:** Após deploy da v1.3.1/1.4.0, o crash na troca de SKU continuou em produção. O bloco inteiro da primeira camada da PDP (fotos, preço, simulador de frete) ainda desaparecia ao trocar acabamento.
+
+**Hipótese:** A correção anterior (keys nos Swipers internos + sanitização de classes) não eliminou a race condition entre destroy do módulo Thumbs e remount quando slides mudam. No layout horizontal, a galeria montava **antes** dos thumbnails, forçando re-link do módulo Thumbs em instância já ativa.
+
+**Solução (v1.4.1):**
+- `key={slidesKey}` no componente `Carousel` (pai) — remount atômico de todo o carrossel ao mudar SKU.
+- Galeria só renderiza quando `thumbSwiper` está pronto (`canRenderGallery`) — evita `thumbs` param update em instância existente.
+- Thumbnails montam **antes** da galeria no DOM (layout horizontal usa `flex` + `order-1`/`order-2` para manter visual).
+- `disconnectSwipers()` no `componentWillUnmount` — desconecta `gallerySwiper.thumbs.swiper` antes de `destroy()`.
+- Guards em `onSwiper`, `handleSlideChange` e flag `_isMounted`.
+- Removido `componentDidUpdate` que fazia `setState` extra na troca de slides.
+- Upgrade Swiper `6.2.0` → `6.8.4` (guardas em `addClass`/`removeClass`).
+- Fix defensivo: `zoomProps` com default no destructuring do `render()`.
+
+**Arquivos modificados:**
+
+| Arquivo | Mudança |
+|---------|---------|
+| `react/components/ProductImagesCustom/index.js` | `key={slidesKey}` no `Carousel` |
+| `react/components/ProductImagesCustom/components/Carousel/index.js` | Montagem sequencial, unmount seguro, guards |
+| `react/components/ProductImagesCustom/components/Carousel/ThumbnailSwiper.js` | Keys de slide mais estáveis |
+| `react/package.json` | Swiper 6.8.4 |
+| `manifest.json` | Versão `1.4.1` |
+
+**Status:** ✅ Implementado — aguardando validação na loja publicada
 
 ---
 

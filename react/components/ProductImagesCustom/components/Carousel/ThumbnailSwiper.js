@@ -235,7 +235,7 @@ const ThumbnailSwiper = props => {
         {slides.map((slide, i) => {
           return (
             <SwiperSlide
-              key={`${i}-${slide.alt}`}
+              key={`${slidesKey}-${i}-${slide.alt || i}`}
               className={itemContainerClassName}
               style={{
                 aspectRatio: isThumbsVertical ? undefined : '405 / 241', // Aspect ratio 405:241

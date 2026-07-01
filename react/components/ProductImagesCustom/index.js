@@ -4,6 +4,7 @@ import { useCssHandles } from 'vtex.css-handles'
 
 import Carousel from './components/Carousel'
 import ProductImage from './components/ProductImage'
+import { getSlidesKey } from './components/Carousel/swiperClassUtils'
 import {
   THUMBS_ORIENTATION,
   THUMBS_POSITION_HORIZONTAL,
@@ -93,6 +94,8 @@ const ProductImagesCustom = ({
     return showVideosFirst ? [...videos, ...images] : [...images, ...videos]
   }, [showVideosFirst, videos, images])
 
+  const slidesKey = getSlidesKey(slides)
+
   const { zoomType: legacyZoomType } = zoomProps || {}
   const isZoomDisabled = legacyZoomType === 'no-zoom' || zoomMode === 'disabled'
 
@@ -152,6 +155,7 @@ const ProductImagesCustom = ({
   return (
     <div className={containerClass}>
       <Carousel
+        key={slidesKey}
         slides={slides}
         placeholder={placeholder}
         position={position}

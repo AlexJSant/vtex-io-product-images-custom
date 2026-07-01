@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-06-30
+
+### Fixed
+
+- Crash do Swiper na troca de SKU em produção: remount completo do `Carousel` via `key`, galeria só monta após thumb swiper pronto, desconexão explícita do módulo Thumbs no unmount, guards em callbacks e upgrade do Swiper para 6.8.4.
+
 ## [1.4.0] - 2026-06-30
 
 ## [1.3.1] - 2026-06-30
