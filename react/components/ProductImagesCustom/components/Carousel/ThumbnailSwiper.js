@@ -88,6 +88,44 @@ const ThumbnailSwiper = props => {
     ...swiperProps
   } = props
 
+  const thumbSwiperRef = useRef(null)
+
+  const handleSwiper = useCallback(
+    instance => {
+      thumbSwiperRef.current = instance
+
+      if (onSwiper) {
+        onSwiper(instance)
+      }
+    },
+    [onSwiper]
+  )
+
+  useEffect(() => {
+    const swiper = thumbSwiperRef.current
+
+    if (!swiper || swiper.destroyed) {
+      return undefined
+    }
+
+    const applyActiveClass = () => {
+      syncThumbSlideActiveClass(swiper, activeIndex, thumbActiveClass)
+    }
+
+    applyActiveClass()
+    swiper.on('update', applyActiveClass)
+    swiper.on('slideChange', applyActiveClass)
+    swiper.on('transitionEnd', applyActiveClass)
+
+    return () => {
+      if (!swiper.destroyed) {
+        swiper.off('update', applyActiveClass)
+        swiper.off('slideChange', applyActiveClass)
+        swiper.off('transitionEnd', applyActiveClass)
+      }
+    }
+  }, [activeIndex, thumbActiveClass, slidesKey, slides.length])
+
   const hasThumbs = slides.length >= 1 // Mudança: >= 1 ao invés de > 1
   const slidesCount = slides.length || 1
 

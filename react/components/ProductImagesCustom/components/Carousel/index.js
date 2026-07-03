@@ -92,7 +92,17 @@ class Carousel extends Component {
       return
     }
 
-    this.setState({ thumbSwiper: instance }, this.syncThumbPosition)
+    this.thumbSwiper = instance
+
+    if (!this._isMounted) {
+      return
+    }
+
+    if (this.state.thumbSwiper === instance) {
+      return
+    }
+
+    this.setState({ thumbSwiper: instance }, () => this.syncThumbPosition(0))
   }
 
   setGallerySwiper = instance => {
@@ -100,7 +110,17 @@ class Carousel extends Component {
       return
     }
 
-    this.setState({ gallerySwiper: instance }, this.syncThumbPosition)
+    this.gallerySwiper = instance
+
+    if (!this._isMounted) {
+      return
+    }
+
+    if (this.state.gallerySwiper === instance) {
+      return
+    }
+
+    this.setState({ gallerySwiper: instance }, () => this.syncThumbPosition(0))
   }
 
   setInitialVariablesState() {

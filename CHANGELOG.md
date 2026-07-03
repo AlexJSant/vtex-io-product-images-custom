@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [1.4.5] - 2026-07-02
+
+### Fixed
+
+- Regressão na v1.4.4: carrossel de thumbs não sincronizava com a galeria, cliques não trocavam a imagem principal e destaque visual sumiu — `onSwiper` não era repassado ao Swiper de thumbnails e `_isMounted` bloqueava o registro das instâncias antes do `componentDidMount`.
+- Destaque do thumb ativo (`productImagesThumbActive`) restaurado via `syncThumbSlideActiveClass` no DOM; transição animada do strip com `slideTo(index, 300)`.
+- Crash no carregamento por `InvalidCharacterError` em `classList.toggle`: handles VTEX com múltiplas classes (base + modifier) são aplicados token a token.
+
 ## [1.4.4] - 2026-07-01
 
 ## [1.4.3] - 2026-07-01
